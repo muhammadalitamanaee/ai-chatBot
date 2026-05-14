@@ -1,13 +1,63 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
+// This tells Prisma which tool to use to generate TypeScript types
+// from our schema. "prisma-client-js" is the standard one.
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
+// This tells Prisma where the database lives
+// DATABASE_URL is read from your .env.local file
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// A Thread is one full conversation — like one chat window
+// One thread has many Messages (one-to-many relationship)
+model Thread {
+  // cuid() generates a unique string ID automatically
+  // @id means this is the primary key — every row must have a unique one
+  id        String    @id @default(cuid())
+
+  // The title shown in the sidebar — we'll set it from the first message
+  // @default means if you don't provide a title, it uses "New Chat"
+  title     String    @default("New Chat")
+
+  // @default(now()) automatically sets this to the current time
+  // when a new thread is created — you never have to set it manually
+  createdAt DateTime  @default(now())
+
+  // @updatedAt automatically updates this timestamp every time
+  // the thread row is modified — Prisma handles this for you
+  updatedAt DateTime  @updatedAt
+
+  // This is the relationship — one Thread has many Messages
+  // This line doesn't create a database column, it just tells
+  // Prisma "you can access thread.messages to get all its messages"
+  messages  Message[]
+}
+
+// A Message is one chat bubble — either from the user or the AI
+model Message {
+  id        String   @id @default(cuid())
+
+  // "user" or "assistant" — matches our Role type in TypeScript
+  role      String
+
+  // The actual text content of the message
+  content   String
+
+  // When this message was created — useful for ordering messages
+  createdAt DateTime @default(now())
+
+  // This is the foreign key — it links this message to a Thread
+  // Every message must belong to exactly one thread
+  // This is what creates the actual column in the database
+  threadId  String
+
+  // This defines the relationship from Message's side
+  // "fields: [threadId]" = the column in THIS table
+  // "references: [id]" = the column in the Thread table it points to
+  // onDelete: Cascade = if you delete a Thread, all its Messages
+  // are automatically deleted too (no orphaned messages)
+  thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
 }
