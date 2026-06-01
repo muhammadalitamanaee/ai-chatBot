@@ -3,6 +3,31 @@
 import { useState, useCallback, useRef } from "react";
 import type { Message } from "@/types/index";
 
+// Helper function outside the hook —
+// takes a chunk of text and renders it word by word
+// with a small delay between each word
+async function typeOutChunk(
+  chunk: string,
+  messageId: string,
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>,
+) {
+  // Split the chunk into words, keeping the spaces attached
+  // so "hello world" becomes ["hello ", "world"]
+  const words = chunk.split(/(?<=\s)|(?=\s)/);
+
+  for (const word of words) {
+    // Append one word at a time to the message
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId ? { ...msg, content: msg.content + word } : msg,
+      ),
+    );
+    // Wait a tiny bit between each word — adjust this number:
+    // 15ms = fast, 30ms = medium, 50ms = slow typewriter feel
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+}
+
 export function useChat() {
   // The full conversation history — every user and assistant message
   // This is what gets rendered in MessageList and sent to the API
@@ -116,17 +141,9 @@ export function useChat() {
           // tokens or part of a token — we don't control the chunk size
           const chunk = decoder.decode(value, { stream: true });
 
-          // Find the assistant message by its id and append the new chunk
-          // We never mutate state directly — always return a new array
-          // This is why we stored assistantMessage.id above — so we can
-          // target exactly the right message even if more messages are added
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === assistantMessage.id
-                ? { ...msg, content: msg.content + chunk }
-                : msg,
-            ),
-          );
+          // Instead of setting the whole chunk at once,
+          // we pass it to typeOutChunk which drips it out word by word
+          await typeOutChunk(chunk, assistantMessage.id, setMessages);
         }
       } catch (err) {
         // AbortError is thrown when the user clicks Stop — that's
