@@ -6,8 +6,9 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: { threadId: string } },
 ) {
+  const { threadId } = await params;
   try {
-    const msgs = await getMessagesByThread(params.threadId);
+    const msgs = await getMessagesByThread(threadId);
     return Response.json(msgs);
   } catch (err) {
     console.error("[GET /api/threads/messages]", err);
