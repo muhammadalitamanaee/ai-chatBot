@@ -4,9 +4,10 @@ import { getMessagesByThread } from "@/db/queries";
 // GET /api/threads/:threadId/messages — load history for one thread
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { threadId: string } },
+  { params }: { params: Promise<{ threadId: string }> },
 ) {
   const { threadId } = await params;
+
   try {
     const msgs = await getMessagesByThread(threadId);
     return Response.json(msgs);
