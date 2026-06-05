@@ -9,7 +9,7 @@ import type { ChatRequest } from "@/types/index";
 // Throws if the provider fails — so we can catch and try the next one
 async function tryProvider(
   providerName: ProviderName,
-  messages: { role: string; content: string }[],
+  messages: { role: "user" | "assistant" | "system"; content: string }[],
 ): Promise<ReadableStream> {
   const provider = PROVIDERS[providerName];
   const client = provider.client();
