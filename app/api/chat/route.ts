@@ -9,7 +9,7 @@ import type { ChatRequest } from "@/types/index";
 async function tryProvider(
   providerName: ProviderName,
   messages: { role: "user" | "assistant" | "system"; content: string }[],
-): Promise<ReadableStream> {
+) {
   const provider = PROVIDERS[providerName];
   const client = provider.client();
 
