@@ -1,10 +1,13 @@
 import OpenAI from "openai";
 
-const gapgpt = new OpenAI({
-  apiKey: process.env.GAPGPT_API_KEY!,
-  // This is the only thing that makes it different from OpenAI —
-  // we point the SDK to GapGPT's server instead of OpenAI's
-  baseURL: "https://api.gapgpt.app/v1",
-});
+// DON'T do this — runs at build time, key doesn't exist yet
+// const gapgpt = new OpenAI({ ... })  ← this is what breaks it
 
-export default gapgpt;
+// DO this instead — a function that creates the client on demand
+// It only runs when a route handler actually calls it, not during build
+export function getGapGPTClient() {
+  return new OpenAI({
+    apiKey: process.env.GAPGPT_API_KEY!,
+    baseURL: "https://api.gapgpt.app/v1",
+  });
+}

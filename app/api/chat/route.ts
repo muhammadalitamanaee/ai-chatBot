@@ -2,12 +2,14 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 import { NextRequest } from "next/server";
-import gapgpt from "@/lib/gapgpt";
+import { getGapGPTClient } from "@/lib/gapgpt";
 import type { ChatRequest } from "@/types/index";
 
 export async function POST(req: NextRequest) {
   try {
     const body: ChatRequest = await req.json();
+
+    const gapgpt = getGapGPTClient();
 
     if (!body.messages || body.messages.length === 0) {
       return new Response("Messages are required", { status: 400 });
