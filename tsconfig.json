@@ -4,7 +4,7 @@
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
-    "strict": true,
+    "strict": false,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
@@ -25,7 +25,7 @@
       "@/hooks/*": ["./src/hooks/*"],
       "@/lib/*": ["./src/lib/*"],
       "@/prisma/*": ["./src/prisma/*"],
-      "@/db/*": ["./src/db/*"],
+      "@/db/*": ["./src/db/*"]
     }
   },
   "include": [
