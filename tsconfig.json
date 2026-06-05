@@ -24,7 +24,8 @@
       "@/components/*": ["./src/components/*"],
       "@/hooks/*": ["./src/hooks/*"],
       "@/lib/*": ["./src/lib/*"],
-      "@/prisma/*": ["./src/prisma/*"]
+      "@/prisma/*": ["./src/prisma/*"],
+      "@/db/*": ["./src/db/*"],
     }
   },
   "include": [

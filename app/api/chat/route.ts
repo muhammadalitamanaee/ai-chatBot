@@ -3,10 +3,9 @@ export const maxDuration = 60;
 
 import { NextRequest } from "next/server";
 import { PROVIDERS, type ProviderName } from "@/lib/providers";
+import { saveMessage, touchThread } from "@/db/queries";
 import type { ChatRequest } from "@/types/index";
 
-// Tries one provider and returns a ReadableStream
-// Throws if the provider fails — so we can catch and try the next one
 async function tryProvider(
   providerName: ProviderName,
   messages: { role: "user" | "assistant" | "system"; content: string }[],
@@ -16,10 +15,6 @@ async function tryProvider(
 
   console.log(`[/api/chat] Trying provider: ${providerName}`);
 
-  // We wrap this in a promise with a timeout
-  // If the provider doesn't respond in 15 seconds, we give up and try the next one
-  const timeoutMs = 15000;
-
   const completionPromise = client.chat.completions.create({
     model: provider.model,
     messages,
@@ -27,40 +22,17 @@ async function tryProvider(
     stream: true,
   });
 
-  // Race the API call against a timeout
-  // Whichever resolves/rejects first wins
   const completion = (await Promise.race([
     completionPromise,
-    // After 15s this rejects, causing us to fall through to the next provider
     new Promise((_, reject) =>
       setTimeout(
         () => reject(new Error(`Provider ${providerName} timed out`)),
-        timeoutMs,
+        15000,
       ),
     ),
   ])) as Awaited<typeof completionPromise>;
 
-  // If we get here, the provider responded — build the stream
-  const readable = new ReadableStream({
-    async start(controller) {
-      const encoder = new TextEncoder();
-
-      try {
-        for await (const chunk of completion) {
-          const token = chunk.choices[0]?.delta?.content;
-          if (token) {
-            controller.enqueue(encoder.encode(token));
-          }
-        }
-      } catch (err) {
-        controller.error(err);
-      } finally {
-        controller.close();
-      }
-    },
-  });
-
-  return readable;
+  return completion;
 }
 
 export async function POST(req: NextRequest) {
@@ -71,56 +43,84 @@ export async function POST(req: NextRequest) {
       return new Response("Messages are required", { status: 400 });
     }
 
-    const messages = body.messages.map(({ role, content }) => ({
+    const { messages: chatMessages, threadId } = body;
+
+    // The last message is always the user's new message
+    const userMessage = chatMessages[chatMessages.length - 1];
+
+    // Save user message immediately before streaming starts
+    await saveMessage({
+      threadId,
+      role: "user",
+      content: userMessage.content,
+    });
+
+    const messages = chatMessages.map(({ role, content }) => ({
       role: role as "user" | "assistant" | "system",
       content,
     }));
 
-    // The fallback chain — try providers in this order
-    // If the first one fails, we catch the error and try the next
     const providerChain: ProviderName[] = ["openrouter", "gapgpt"];
-
     let lastError: Error | null = null;
+    let usedProvider: ProviderName | null = null;
 
     for (const providerName of providerChain) {
       try {
-        // Try this provider — if it works, stream it back immediately
-        const stream = await tryProvider(providerName, messages);
+        const completion = await tryProvider(providerName, messages);
+        usedProvider = providerName;
 
-        console.log(`[/api/chat] Success with provider: ${providerName}`);
+        // Accumulate full response so we can save it after streaming
+        let fullResponse = "";
 
-        // Return which provider was used as a header — useful for debugging
-        return new Response(stream, {
+        const readable = new ReadableStream({
+          async start(controller) {
+            const encoder = new TextEncoder();
+            try {
+              for await (const chunk of completion) {
+                const token = chunk.choices[0]?.delta?.content;
+                if (token) {
+                  fullResponse += token;
+                  controller.enqueue(encoder.encode(token));
+                }
+              }
+
+              // Stream finished — save the complete assistant message
+              await saveMessage({
+                threadId,
+                role: "assistant",
+                content: fullResponse,
+              });
+
+              // Update thread's updatedAt so it sorts correctly in sidebar
+              await touchThread(threadId);
+            } catch (err) {
+              controller.error(err);
+            } finally {
+              controller.close();
+            }
+          },
+        });
+
+        return new Response(readable, {
           headers: {
             "Content-Type": "text/plain; charset=utf-8",
             "X-Accel-Buffering": "no",
             "Cache-Control": "no-cache",
-            // You can read this header in the browser devtools to see which provider responded
-            "X-Provider-Used": providerName,
+            "X-Provider-Used": usedProvider,
           },
         });
       } catch (err) {
-        // This provider failed — log it and try the next one
         lastError = err instanceof Error ? err : new Error("Unknown error");
         console.error(
           `[/api/chat] Provider ${providerName} failed:`,
           lastError.message,
         );
-        // Loop continues to next provider automatically
       }
     }
 
-    // All providers failed
-    console.error(
-      "[/api/chat] All providers failed. Last error:",
-      lastError?.message,
-    );
-    return new Response(
-      "All AI providers are currently unavailable. Please try again.",
-      {
-        status: 503, // 503 = Service Unavailable (more accurate than 500 here)
-      },
-    );
+    return new Response("All AI providers are currently unavailable.", {
+      status: 503,
+    });
   } catch (err) {
     console.error("[/api/chat] Unexpected error:", err);
     const message = err instanceof Error ? err.message : "Unknown error";

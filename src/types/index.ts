@@ -9,4 +9,5 @@ export interface Message {
 
 export interface ChatRequest {
   messages: Pick<Message, "role" | "content">[];
+  threadId: string; // ← new
 }
