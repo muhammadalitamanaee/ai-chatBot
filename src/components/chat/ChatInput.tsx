@@ -67,7 +67,7 @@ export function ChatInput({ onSend, onStop, isLoading }: Props) {
         )}
       </div>
       <p className="text-xs text-neutral-400 text-center mt-2">
-        Shift+Enter =  newline
+        Shift+Enter for newline
       </p>
     </div>
   );
