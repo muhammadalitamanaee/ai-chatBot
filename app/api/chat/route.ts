@@ -1,5 +1,5 @@
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 import { NextRequest } from "next/server";
 import { getGapGPTClient } from "@/lib/gapgpt";
