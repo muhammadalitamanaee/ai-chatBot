@@ -3,5 +3,6 @@
     "src/app/api/chat/route.ts": {
       "maxDuration": 60
     }
-  }
+  },
+  "regions": ["iad1"]
 }
