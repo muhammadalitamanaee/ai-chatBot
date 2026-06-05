@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     }
 
     const messages = body.messages.map(({ role, content }) => ({
-      role,
+      role: role as "user" | "assistant" | "system",
       content,
     }));
 
