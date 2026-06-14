@@ -1,6 +1,6 @@
 export const runtime = "nodejs";
 export const maxDuration = 60;
-
+import { auth } from "@/lib/auth";
 import { NextRequest } from "next/server";
 import { PROVIDERS, type ProviderName } from "@/lib/providers";
 import { saveMessage, touchThread } from "@/db/queries";
@@ -36,6 +36,11 @@ async function tryProvider(
 }
 
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
   try {
     const body: ChatRequest = await req.json();
 

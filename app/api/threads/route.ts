@@ -1,10 +1,17 @@
 import { NextRequest } from "next/server";
+import { auth } from "@/lib/auth";
 import { createThread, getAllThreads } from "@/db/queries";
 
-// GET /api/threads — returns all threads for the sidebar
 export async function GET() {
+  // Get the current user's session
+  const session = await auth();
+  if (!session?.user?.id) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
   try {
-    const allThreads = await getAllThreads();
+    // Only return this user's threads
+    const allThreads = await getAllThreads(session.user.id);
     return Response.json(allThreads);
   } catch (err) {
     console.error("[GET /api/threads]", err);
@@ -12,11 +19,19 @@ export async function GET() {
   }
 }
 
-// POST /api/threads — creates a new thread, returns it
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
   try {
     const { title } = await req.json();
-    const thread = await createThread(title ?? "New conversation");
+    // Pass userId so the thread is owned by this user
+    const thread = await createThread(
+      title ?? "New conversation",
+      session.user.id,
+    );
     return Response.json(thread);
   } catch (err) {
     console.error("[POST /api/threads]", err);

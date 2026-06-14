@@ -5,6 +5,7 @@ import { useChat } from "@/hooks/useChat";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { ChatInput } from "@/components/chat/ChatInput";
 import type { Thread } from "@/db/schema";
+import { SignOutButton } from "@/src/components/SignOutButton";
 
 export default function Home() {
   const [activeThread, setActiveThread] = useState<Thread | null>(null);
@@ -93,6 +94,7 @@ export default function Home() {
               {messages.length} messages
             </span>
           )}
+          <SignOutButton />
         </header>
 
         <main className="flex-1 overflow-y-auto px-4 py-6">

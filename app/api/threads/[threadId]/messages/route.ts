@@ -1,15 +1,19 @@
 import { NextRequest } from "next/server";
+import { auth } from "@/lib/auth";
 import { getMessagesByThread } from "@/db/queries";
 
-// GET /api/threads/:threadId/messages — load history for one thread
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ threadId: string }> },
+  { params }: { params: { threadId: string } },
 ) {
-  const { threadId } = await params;
+  const session = await auth();
+  if (!session?.user?.id) {
+    return new Response("Unauthorized", { status: 401 });
+  }
 
   try {
-    const msgs = await getMessagesByThread(threadId);
+    // userId passed so we verify ownership before returning messages
+    const msgs = await getMessagesByThread(params.threadId, session.user.id);
     return Response.json(msgs);
   } catch (err) {
     console.error("[GET /api/threads/messages]", err);
