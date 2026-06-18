@@ -4,7 +4,7 @@ import { getMessagesByThread } from "@/db/queries";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { threadId: string } },
+  { params }: { params: Promise<{ threadId: string }> }, // ← Promise now
 ) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -12,8 +12,8 @@ export async function GET(
   }
 
   try {
-    // userId passed so we verify ownership before returning messages
-    const msgs = await getMessagesByThread(params.threadId, session.user.id);
+    const { threadId } = await params;
+    const msgs = await getMessagesByThread(threadId, session.user.id);
     return Response.json(msgs);
   } catch (err) {
     console.error("[GET /api/threads/messages]", err);
