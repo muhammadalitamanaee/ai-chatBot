@@ -35,7 +35,7 @@ export function ChatInput({ onSend, onStop, isLoading }: Props) {
   };
 
   return (
-    <div className="h-32 border-t border-neutral-200 bg-white px-4 py-4">
+    <div className="h-32 border-t border-neutral-200 bg-white dark:bg-neutral-700 px-4 py-4">
       <div className="max-w-3xl mx-auto flex gap-3 items-end">
         <textarea
           ref={textareaRef}
@@ -45,7 +45,7 @@ export function ChatInput({ onSend, onStop, isLoading }: Props) {
           placeholder="Message... (Enter to send, Shift+Enter for newline)"
           rows={1}
           disabled={isLoading}
-          className="flex-1 text-black resize-none rounded-xl border border-neutral-300 px-4 py-3 text-sm outline-none focus:border-neutral-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 text-black dark:text-white resize-none rounded-xl border border-neutral-300 dark:border-amber-700 px-4 py-3 text-sm outline-none focus:border-neutral-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ minHeight: "48px", maxHeight: "280px" }}
         />
 
