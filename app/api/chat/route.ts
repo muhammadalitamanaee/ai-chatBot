@@ -1,15 +1,16 @@
-export const runtime = "nodejs";
+export const runtime = 'nodejs';
 export const maxDuration = 60;
-import { auth } from "@/lib/auth";
-import { NextRequest } from "next/server";
-import { PROVIDERS, type ProviderName } from "@/lib/providers";
-import { saveMessage, touchThread } from "@/db/queries";
-import type { ChatRequest } from "@/types/index";
+
+import { NextRequest } from 'next/server';
+import { auth } from '@/lib/auth';
+import { PROVIDERS, type ProviderName } from '@/lib/providers';
+import { saveMessage, touchThread, renameThread, getMessagesByThread } from '@/db/queries';
+import type { ChatRequest } from '@/types/index';
 
 async function tryProvider(
   providerName: ProviderName,
-  messages: { role: "user" | "assistant" | "system"; content: string }[],
-) {
+  messages: { role: 'user' | 'assistant' | 'system'; content: string }[]
+): Promise<Awaited<ReturnType<ReturnType<typeof PROVIDERS[ProviderName]['client']>['chat']['completions']['create']>>> {
   const provider = PROVIDERS[providerName];
   const client = provider.client();
 
@@ -22,15 +23,15 @@ async function tryProvider(
     stream: true,
   });
 
-  const completion = (await Promise.race([
+  const completion = await Promise.race([
     completionPromise,
     new Promise((_, reject) =>
       setTimeout(
         () => reject(new Error(`Provider ${providerName} timed out`)),
-        15000,
-      ),
+        15000
+      )
     ),
-  ])) as Awaited<typeof completionPromise>;
+  ]) as Awaited<typeof completionPromise>;
 
   return completion;
 }
@@ -38,44 +39,51 @@ async function tryProvider(
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
-    return new Response("Unauthorized", { status: 401 });
+    return new Response('Unauthorized', { status: 401 });
   }
 
   try {
     const body: ChatRequest = await req.json();
 
     if (!body.messages || body.messages.length === 0) {
-      return new Response("Messages are required", { status: 400 });
+      return new Response('Messages are required', { status: 400 });
     }
 
     const { messages: chatMessages, threadId } = body;
-
-    // The last message is always the user's new message
     const userMessage = chatMessages[chatMessages.length - 1];
 
-    // Save user message immediately before streaming starts
+    // Save user message immediately
     await saveMessage({
       threadId,
-      role: "user",
+      role: 'user',
       content: userMessage.content,
     });
 
+    // Check if this is the first message in the thread
+    // If so, we'll auto-title the thread after saving
+    const existingMessages = await getMessagesByThread(threadId, session.user.id);
+    const isFirstMessage = existingMessages.length === 1; // only the one we just saved
+
+    // Auto-title — trim first message to 40 chars
+    if (isFirstMessage) {
+      const title = userMessage.content.length > 40
+        ? userMessage.content.slice(0, 40).trimEnd() + '...'
+        : userMessage.content;
+      await renameThread(threadId, title, session.user.id);
+    }
+
     const messages = chatMessages.map(({ role, content }) => ({
-      role: role as "user" | "assistant" | "system",
+      role: role as 'user' | 'assistant' | 'system',
       content,
     }));
 
-    const providerChain: ProviderName[] = ["openrouter", "gapgpt"];
+    const providerChain: ProviderName[] = ['openrouter', 'gapgpt'];
     let lastError: Error | null = null;
-    let usedProvider: ProviderName | null = null;
 
     for (const providerName of providerChain) {
       try {
         const completion = await tryProvider(providerName, messages);
-        usedProvider = providerName;
-
-        // Accumulate full response so we can save it after streaming
-        let fullResponse = "";
+        let fullResponse = '';
 
         const readable = new ReadableStream({
           async start(controller) {
@@ -89,15 +97,14 @@ export async function POST(req: NextRequest) {
                 }
               }
 
-              // Stream finished — save the complete assistant message
               await saveMessage({
                 threadId,
-                role: "assistant",
+                role: 'assistant',
                 content: fullResponse,
               });
 
-              // Update thread's updatedAt so it sorts correctly in sidebar
               await touchThread(threadId);
+
             } catch (err) {
               controller.error(err);
             } finally {
@@ -108,27 +115,26 @@ export async function POST(req: NextRequest) {
 
         return new Response(readable, {
           headers: {
-            "Content-Type": "text/plain; charset=utf-8",
-            "X-Accel-Buffering": "no",
-            "Cache-Control": "no-cache",
-            "X-Provider-Used": usedProvider,
+            'Content-Type': 'text/plain; charset=utf-8',
+            'X-Accel-Buffering': 'no',
+            'Cache-Control': 'no-cache',
+            'X-Provider-Used': providerName,
           },
         });
+
       } catch (err) {
-        lastError = err instanceof Error ? err : new Error("Unknown error");
-        console.error(
-          `[/api/chat] Provider ${providerName} failed:`,
-          lastError.message,
-        );
+        lastError = err instanceof Error ? err : new Error('Unknown error');
+        console.error(`[/api/chat] Provider ${providerName} failed:`, lastError.message);
       }
     }
 
-    return new Response("All AI providers are currently unavailable.", {
+    return new Response('All AI providers are currently unavailable.', {
       status: 503,
     });
+
   } catch (err) {
-    console.error("[/api/chat] Unexpected error:", err);
-    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error('[/api/chat] Unexpected error:', err);
+    const message = err instanceof Error ? err.message : 'Unknown error';
     return new Response(message, { status: 500 });
   }
 }

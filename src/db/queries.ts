@@ -67,3 +67,15 @@ export async function getMessagesByThread(threadId: string, userId: string) {
     .where(eq(messages.threadId, threadId))
     .orderBy(asc(messages.createdAt));
 }
+
+// Rename a thread — only if it belongs to this user
+export async function renameThread(
+  threadId: string,
+  title: string,
+  userId: string,
+) {
+  await db
+    .update(threads)
+    .set({ title })
+    .where(and(eq(threads.id, threadId), eq(threads.userId, userId)));
+}
