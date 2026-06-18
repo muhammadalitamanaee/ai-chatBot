@@ -3,23 +3,34 @@
 import { useState, useEffect } from "react";
 
 export function DarkModeToggle() {
-  const [isDark, setIsDark] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  // Read saved preference on mount
+  // 1. Initialize state lazily to completely avoid triggering synchronous updates inside an effect
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("darkMode") === "true";
+    }
+    return false;
+  });
+
+  // 2. Signal when the component has successfully mounted on the browser
   useEffect(() => {
-    const saved = localStorage.getItem("darkMode") === "true";
-    setIsDark(saved);
-    document.documentElement.classList.toggle("dark", saved);
-  }, []);
+    setMounted(true);
+    // Sync the HTML class to match the stored state immediately on mount
+    document.documentElement.classList.toggle("dark", isDark);
+  }, [isDark]);
 
   const toggle = () => {
     const next = !isDark;
     setIsDark(next);
-    // Apply to <html> element — Tailwind reads this for dark: classes
     document.documentElement.classList.toggle("dark", next);
-    // Remember preference
     localStorage.setItem("darkMode", String(next));
   };
+
+  // 3. Render a neutral placeholder block on the server to prevent hydration flashing
+  if (!mounted) {
+    return <div className="w-[24px] h-[24px] p-1" />;
+  }
 
   return (
     <button
@@ -28,7 +39,7 @@ export function DarkModeToggle() {
       title={isDark ? "Switch to light mode" : "Switch to dark mode"}
     >
       {isDark ? (
-        // Sun icon
+        /* Sun icon */
         <svg
           width="16"
           height="16"
@@ -50,7 +61,7 @@ export function DarkModeToggle() {
           <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
         </svg>
       ) : (
-        // Moon icon
+        /* Moon icon */
         <svg
           width="16"
           height="16"

@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* Add this line so Tailwind maps the "dark:" prefix to the .dark class on your <html> tag */
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --background: #ffffff;
