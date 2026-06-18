@@ -20,7 +20,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="absolute top-3 right-3 text-xs text-neutral-400 hover:text-white transition-colors px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600"
+      className="absolute top-1 right-3 text-xs text-neutral-400 hover:text-white transition-colors px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600"
     >
       {copied ? "Copied!" : "Copy"}
     </button>

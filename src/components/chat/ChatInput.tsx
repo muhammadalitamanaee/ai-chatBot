@@ -52,7 +52,7 @@ export function ChatInput({ onSend, onStop, isLoading }: Props) {
         {isLoading ? (
           <button
             onClick={onStop}
-            className="px-4 py-3 rounded-xl border border-neutral-300 text-sm text-neutral-600 hover:bg-neutral-100 transition-colors flex-shrink-0"
+            className="px-4 py-3 rounded-xl border dark:bg-white border-neutral-300 text-sm text-neutral-600 hover:bg-neutral-100 transition-colors flex-shrink-0"
           >
             Stop
           </button>
