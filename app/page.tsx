@@ -5,12 +5,15 @@ import { useChat } from "@/hooks/useChat";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ThreadItem } from "@/components/sidebar/ThreadItem";
-import { SignOutButton } from "@/components/SignOutButton";
+import { ThreadSkeleton } from "@/components/sidebar/ThreadSkeleton";
+import { UserPanel } from "@/components/sidebar/UserPanel";
 import type { Thread } from "@/db/schema";
+import { SessionProvider } from "next-auth/react";
 
 export default function Home() {
   const [activeThread, setActiveThread] = useState<Thread | null>(null);
   const [threads, setThreads] = useState<Thread[]>([]);
+  const [isLoadingThreads, setIsLoadingThreads] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -23,10 +26,21 @@ export default function Home() {
   } = useChat(activeThread?.id ?? "");
 
   useEffect(() => {
-    fetch("/api/threads")
-      .then((r) => r.json())
-      .then(setThreads)
-      .catch(console.error);
+    const loadThreads = async () => {
+      setIsLoadingThreads(true);
+      try {
+        const response = await fetch("/api/threads");
+        const data = await response.json();
+
+        setThreads(data);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setIsLoadingThreads(false);
+      }
+    };
+
+    loadThreads();
   }, []);
 
   useEffect(() => {
@@ -44,29 +58,19 @@ export default function Home() {
     setActiveThread(thread);
   };
 
-  // Delete thread — remove from sidebar, clear if active
   const handleDelete = async (threadId: string) => {
     await fetch(`/api/threads/${threadId}`, { method: "DELETE" });
-
     setThreads((prev) => prev.filter((t) => t.id !== threadId));
-
-    if (activeThread?.id === threadId) {
-      setActiveThread(null);
-    }
+    if (activeThread?.id === threadId) setActiveThread(null);
   };
 
-  // Rename thread — update in sidebar optimistically
   const handleRename = async (threadId: string, newTitle: string) => {
-    // Update UI immediately without waiting for server
     setThreads((prev) =>
       prev.map((t) => (t.id === threadId ? { ...t, title: newTitle } : t)),
     );
-
     if (activeThread?.id === threadId) {
       setActiveThread((prev) => (prev ? { ...prev, title: newTitle } : null));
     }
-
-    // Then persist to DB
     await fetch(`/api/threads/${threadId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -74,8 +78,6 @@ export default function Home() {
     });
   };
 
-  // Refresh thread title after first message is sent
-  // The route auto-titles it — we need to pull the updated title
   const refreshThreadTitle = async (threadId: string) => {
     const res = await fetch("/api/threads");
     const allThreads: Thread[] = await res.json();
@@ -86,25 +88,23 @@ export default function Home() {
     }
   };
 
-  // Wrap sendMessage to refresh title after first message
   const handleSendMessage = async (content: string) => {
     const isFirstMessage = messages.length === 0;
     await sendMessage(content);
     if (isFirstMessage && activeThread) {
-      // Small delay to let the server finish saving + titling
       setTimeout(() => refreshThreadTitle(activeThread.id), 1000);
     }
   };
 
   return (
-    <div className="flex h-screen bg-neutral-50">
+    <div className="flex h-screen bg-neutral-50 dark:bg-neutral-900">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-neutral-200 flex flex-col">
-        {/* New chat button */}
-        <div className="p-4 border-b border-neutral-200">
+      <aside className="w-64 bg-white dark:bg-neutral-800 border-r border-neutral-200 dark:border-neutral-700 flex flex-col">
+        {/* New chat */}
+        <div className="p-4 border-b border-neutral-200 dark:border-neutral-700">
           <button
             onClick={handleNewChat}
-            className="w-full py-2 px-4 rounded-xl bg-neutral-800 text-white text-sm font-medium hover:bg-neutral-700 transition-colors"
+            className="w-full py-2 px-4 rounded-xl bg-neutral-800 dark:bg-neutral-600 text-white text-sm font-medium hover:bg-neutral-700 dark:hover:bg-neutral-500 transition-colors"
           >
             + New chat
           </button>
@@ -112,33 +112,41 @@ export default function Home() {
 
         {/* Thread list */}
         <div className="flex-1 overflow-y-auto p-2">
-          {threads.length === 0 && (
+          {isLoadingThreads ? (
+            // Show skeletons while loading
+            <>
+              <ThreadSkeleton />
+              <ThreadSkeleton />
+              <ThreadSkeleton />
+            </>
+          ) : threads.length === 0 ? (
             <p className="text-xs text-neutral-400 text-center mt-4">
               No conversations yet
             </p>
+          ) : (
+            threads.map((thread) => (
+              <ThreadItem
+                key={thread.id}
+                thread={thread}
+                isActive={activeThread?.id === thread.id}
+                onSelect={() => setActiveThread(thread)}
+                onDelete={handleDelete}
+                onRename={handleRename}
+              />
+            ))
           )}
-          {threads.map((thread) => (
-            <ThreadItem
-              key={thread.id}
-              thread={thread}
-              isActive={activeThread?.id === thread.id}
-              onSelect={() => setActiveThread(thread)}
-              onDelete={handleDelete}
-              onRename={handleRename}
-            />
-          ))}
         </div>
 
-        {/* Sign out at the bottom of sidebar */}
-        <div className="p-4 border-t border-neutral-200">
-          <SignOutButton />
-        </div>
+        {/* User panel at bottom */}
+        <SessionProvider>
+          <UserPanel />
+        </SessionProvider>
       </aside>
 
       {/* Main area */}
       <div className="flex flex-col flex-1 min-w-0">
-        <header className="bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between">
-          <h1 className="font-semibold text-neutral-800 text-sm truncate">
+        <header className="bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 px-6 py-4 flex items-center justify-between">
+          <h1 className="font-semibold text-neutral-800 dark:text-neutral-100 text-sm truncate">
             {activeThread?.title ?? "Select or start a conversation"}
           </h1>
           {activeThread && (
@@ -152,16 +160,27 @@ export default function Home() {
           <div className="max-w-3xl mx-auto">
             {!activeThread && (
               <div className="text-center mt-24">
-                <p className="text-2xl mb-2">💬</p>
-                <p className="text-neutral-500 text-sm">
-                  Click "+ New chat" to start a conversation
+                <p className="text-4xl mb-4">✨</p>
+                <h2 className="text-lg font-semibold text-neutral-700 dark:text-neutral-200 mb-2">
+                  What can I help you with?
+                </h2>
+                <p className="text-neutral-400 text-sm">
+                  Start a new conversation from the sidebar
                 </p>
               </div>
             )}
 
             {isLoadingHistory && (
-              <div className="text-center mt-24 text-neutral-400 text-sm">
-                Loading conversation...
+              <div className="space-y-4 mt-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="animate-pulse flex gap-3">
+                    <div className="w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-700 flex-shrink-0" />
+                    <div className="flex-1 space-y-2 pt-1">
+                      <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4" />
+                      <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-1/2" />
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -170,7 +189,7 @@ export default function Home() {
             ))}
 
             {error && (
-              <div className="text-center text-red-500 text-sm py-2">
+              <div className="text-center text-red-500 dark:text-red-400 text-sm py-2">
                 {error}
               </div>
             )}
