@@ -20,7 +20,7 @@ export function ThreadItem({
 }: Props) {
   // Controls whether we're in rename mode
   const [isEditing, setIsEditing] = useState(false);
-
+  console.log("is Active", isActive);
   // Controls whether we're showing the delete confirmation
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
@@ -79,7 +79,7 @@ export function ThreadItem({
           onChange={(e) => setEditValue(e.target.value)}
           onKeyDown={handleKeyDown}
           onBlur={handleRenameSubmit}
-          className="flex-1 px-3 py-2 text-sm bg-white border border-neutral-300 rounded-lg outline-none focus:border-neutral-500 mx-1"
+          className="flex-1 px-3 py-2 text-sm bg-white border border-neutral-300 rounded-lg outline-none focus:border-neutral-500 mx-1 text-neutral-800"
         />
       ) : (
         // Normal mode — show title button
