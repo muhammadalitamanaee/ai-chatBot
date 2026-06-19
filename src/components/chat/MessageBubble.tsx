@@ -5,6 +5,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useState } from "react";
 import type { Message } from "@/types/index";
+import remarkGfm from "remark-gfm"; // ← add this
 
 // Copy button for code blocks
 function CopyButton({ text }: { text: string }) {
@@ -65,6 +66,7 @@ export function MessageBubble({ message }: { message: Message }) {
           "
           >
             <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
               components={{
                 // Custom code block renderer with syntax highlighting
                 code({ node, className, children, ...props }) {
