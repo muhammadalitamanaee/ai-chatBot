@@ -79,21 +79,39 @@ export function ThreadItem({
           onChange={(e) => setEditValue(e.target.value)}
           onKeyDown={handleKeyDown}
           onBlur={handleRenameSubmit}
-          className="flex-1 px-3 py-2 text-sm bg-white border border-neutral-300 rounded-lg outline-none focus:border-neutral-500 mx-1 text-neutral-800"
+          className="flex-1 px-3 py-2 text-sm bg-white rounded-lg outline-none text-neutral-800"
         />
       ) : (
         // Normal mode — show title button
         <button
           onClick={onSelect}
-          className="flex-1 text-left px-3 py-2 text-sm truncate"
+          className="flex-1 text-left px-3 py-2 text-sm min-w-0 overflow-hidden"
         >
-          <span
-            className={
-              isActive ? "text-neutral-900 font-medium" : "text-neutral-600"
-            }
-          >
-            {thread.title}
-          </span>
+          {/* Fade out instead of "..." */}
+          <div className="relative overflow-hidden">
+            {/* Title text — fix dark mode active color */}
+            <span
+              className={`block whitespace-nowrap text-sm ${
+                isActive
+                  ? "text-neutral-900  font-medium"
+                  : "text-neutral-600 dark:text-neutral-400"
+              }`}
+            >
+              {thread.title}
+            </span>
+
+            {/* Gradient fade */}
+            <div
+              className={`absolute inset-y-0 right-0 transition-all duration-150 ${
+                isHovered ? "w-16" : "w-8"
+              }`}
+              style={{
+                background: isActive
+                  ? "linear-gradient(to left, var(--sidebar-active-bg) 40%, transparent)"
+                  : "linear-gradient(to left, var(--sidebar-bg) 40%, transparent)",
+              }}
+            />
+          </div>
         </button>
       )}
 

@@ -12,7 +12,6 @@ export function ChatInput({ onSend, onStop, isLoading }: Props) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-resize textarea as content grows
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -35,24 +34,52 @@ export function ChatInput({ onSend, onStop, isLoading }: Props) {
   };
 
   return (
-    <div className="h-32 border-t border-neutral-200 bg-white dark:bg-neutral-700 px-4 py-4">
+    <div className="border-t border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-4 py-4">
       <div className="max-w-3xl mx-auto flex gap-3 items-end">
         <textarea
           ref={textareaRef}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Message... (Enter to send, Shift+Enter for newline)"
+          placeholder="Message..."
           rows={1}
           disabled={isLoading}
-          className="flex-1 text-black dark:text-white resize-none rounded-xl border border-neutral-300 dark:border-amber-700 px-4 py-3 text-sm outline-none focus:border-neutral-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ minHeight: "48px", maxHeight: "280px" }}
+          className="
+            flex-1 resize-none rounded-xl px-4 py-3 text-sm
+            outline-none transition-all duration-200
+            min-h-[48px]
+
+            /* Light mode */
+            bg-neutral-50
+            text-neutral-900
+            placeholder-neutral-400
+            border border-neutral-200
+            focus:border-neutral-400
+            focus:bg-white
+
+            /* Dark mode */
+            dark:bg-neutral-700
+            dark:text-neutral-100
+            dark:placeholder-neutral-500
+            dark:border-neutral-600
+            dark:focus:border-neutral-400
+            dark:focus:bg-neutral-600
+
+            disabled:opacity-50 disabled:cursor-not-allowed
+          "
+          style={{ maxHeight: "200px" }}
         />
 
         {isLoading ? (
           <button
             onClick={onStop}
-            className="px-4 py-3 rounded-xl border dark:bg-white border-neutral-300 text-sm text-neutral-600 hover:bg-neutral-100 transition-colors flex-shrink-0"
+            className="
+              px-4 py-3 rounded-xl text-sm flex-shrink-0
+              border border-neutral-200 dark:border-neutral-600
+              text-neutral-600 dark:text-neutral-300
+              hover:bg-neutral-100 dark:hover:bg-neutral-700
+              transition-colors
+            "
           >
             Stop
           </button>
@@ -60,13 +87,20 @@ export function ChatInput({ onSend, onStop, isLoading }: Props) {
           <button
             onClick={handleSend}
             disabled={!value.trim()}
-            className="px-4 py-3 rounded-xl bg-neutral-800 text-white text-sm font-medium hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+            className="
+              px-4 py-3 rounded-xl text-sm font-medium flex-shrink-0
+              bg-neutral-800 dark:bg-neutral-200
+              text-white dark:text-neutral-900
+              hover:bg-neutral-700 dark:hover:bg-neutral-300
+              disabled:opacity-40 disabled:cursor-not-allowed
+              transition-colors
+            "
           >
             Send
           </button>
         )}
       </div>
-      <p className="text-xs text-neutral-400 text-center mt-2">
+      <p className="text-xs text-neutral-400 dark:text-neutral-500 text-center mt-2">
         Shift+Enter for newline
       </p>
     </div>
