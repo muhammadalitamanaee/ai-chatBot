@@ -41,7 +41,7 @@ export function MessageBubble({ message }: { message: Message }) {
       )}
 
       <div
-        className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+        className={`max-w-[85%] md:max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
           isUser
             ? "bg-neutral-800 text-white rounded-br-sm dark:bg-neutral-700"
             : "bg-white border border-neutral-200 text-neutral-800 rounded-bl-sm dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-100"

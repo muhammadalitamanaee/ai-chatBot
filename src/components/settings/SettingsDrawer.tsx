@@ -68,7 +68,7 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
       <div
         ref={drawerRef}
         className={`
-          fixed top-0 right-0 h-full w-96 z-50
+          fixed top-0 right-0 h-full w-full sm:w-96 z-50
           bg-white dark:bg-neutral-800
           border-l border-neutral-200 dark:border-neutral-700
           shadow-xl

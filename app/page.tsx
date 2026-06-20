@@ -15,6 +15,10 @@ export default function Home() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [isLoadingThreads, setIsLoadingThreads] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Mobile sidebar state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -40,6 +44,12 @@ export default function Home() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Close sidebar when route changes on mobile
+  const handleThreadSelect = (thread: Thread) => {
+    setActiveThread(thread);
+    setIsSidebarOpen(false); // close sidebar after selecting on mobile
+  };
+
   const handleNewChat = async () => {
     const res = await fetch("/api/threads", {
       method: "POST",
@@ -49,6 +59,7 @@ export default function Home() {
     const thread: Thread = await res.json();
     setThreads((prev) => [thread, ...prev]);
     setActiveThread(thread);
+    setIsSidebarOpen(false); // close sidebar after creating on mobile
   };
 
   const handleDelete = async (threadId: string) => {
@@ -90,18 +101,59 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen bg-neutral-50 dark:bg-neutral-900">
+    <div className="flex h-screen bg-neutral-50 dark:bg-neutral-900 overflow-hidden">
+      {/* Mobile backdrop — only visible when sidebar is open on mobile */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-30 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-white dark:bg-neutral-800 border-r border-neutral-200 dark:border-neutral-700 flex flex-col">
-        <div className="p-4 border-b border-neutral-200 dark:border-neutral-700">
+      <aside
+        className={`
+        fixed md:relative inset-y-0 left-0 z-40
+        w-72 md:w-64
+        bg-white dark:bg-neutral-800
+        border-r border-neutral-200 dark:border-neutral-700
+        flex flex-col
+        transform transition-transform duration-300 ease-in-out
+        ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
+        md:translate-x-0
+      `}
+      >
+        {/* Sidebar header */}
+        <div className="p-4 border-b border-neutral-200 dark:border-neutral-700 flex items-center gap-3">
           <button
             onClick={handleNewChat}
-            className="w-full py-2 px-4 rounded-xl bg-neutral-800 dark:bg-neutral-600 text-white text-sm font-medium hover:bg-neutral-700 dark:hover:bg-neutral-500 transition-colors"
+            className="flex-1 py-2 px-4 rounded-xl bg-neutral-800 dark:bg-neutral-600 text-white text-sm font-medium hover:bg-neutral-700 dark:hover:bg-neutral-500 transition-colors"
           >
             + New chat
           </button>
+
+          {/* Close button — mobile only */}
+          <button
+            onClick={() => setIsSidebarOpen(false)}
+            className="md:hidden text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
 
+        {/* Thread list */}
         <div className="flex-1 overflow-y-auto p-2">
           {isLoadingThreads ? (
             <>
@@ -119,7 +171,7 @@ export default function Home() {
                 key={thread.id}
                 thread={thread}
                 isActive={activeThread?.id === thread.id}
-                onSelect={() => setActiveThread(thread)}
+                onSelect={() => handleThreadSelect(thread)}
                 onDelete={handleDelete}
                 onRename={handleRename}
               />
@@ -131,15 +183,39 @@ export default function Home() {
       </aside>
 
       {/* Main area */}
-      <div className="flex flex-col flex-1 min-w-0">
-        <header className="bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 px-6 py-4 flex items-center justify-between">
-          <h1 className="font-semibold text-neutral-800 dark:text-neutral-100 text-sm truncate">
+      <div className="flex flex-col flex-1 min-w-0 w-full">
+        {/* Header */}
+        <header className="bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 px-4 md:px-6 py-4 flex items-center gap-3">
+          {/* Hamburger — mobile only */}
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="md:hidden text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-100 p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors flex-shrink-0"
+            aria-label="Open sidebar"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+
+          {/* Thread title */}
+          <h1 className="flex-1 font-semibold text-neutral-800 dark:text-neutral-100 text-sm truncate">
             {activeThread?.title ?? "Select or start a conversation"}
           </h1>
 
-          <div className="flex items-center gap-3 flex-shrink-0 ml-4">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {activeThread && (
-              <span className="text-xs text-neutral-400">
+              <span className="text-xs text-neutral-400 hidden sm:block">
                 {messages.length} messages
               </span>
             )}
@@ -150,7 +226,6 @@ export default function Home() {
               className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700"
               title="Settings"
             >
-              {/* Gear icon */}
               <svg
                 width="16"
                 height="16"
@@ -168,16 +243,17 @@ export default function Home() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-4 py-6">
+        {/* Messages */}
+        <main className="flex-1 overflow-y-auto px-3 md:px-4 py-6">
           <div className="max-w-3xl mx-auto">
             {!activeThread && (
-              <div className="text-center mt-24">
+              <div className="text-center mt-24 px-4">
                 <p className="text-4xl mb-4">✨</p>
                 <h2 className="text-lg font-semibold text-neutral-700 dark:text-neutral-200 mb-2">
                   What can I help you with?
                 </h2>
                 <p className="text-neutral-400 text-sm">
-                  Start a new conversation from the sidebar
+                  Tap the menu to start a new conversation
                 </p>
               </div>
             )}
@@ -219,7 +295,6 @@ export default function Home() {
         )}
       </div>
 
-      {/* Settings drawer */}
       <SettingsDrawer
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}

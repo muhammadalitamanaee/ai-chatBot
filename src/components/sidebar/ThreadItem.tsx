@@ -85,7 +85,7 @@ export function ThreadItem({
         // Normal mode — show title button
         <button
           onClick={onSelect}
-          className="flex-1 text-left px-3 py-2 text-sm min-w-0 overflow-hidden"
+          className="flex-1 text-left px-3 py-2.5 md:py-2 text-sm min-w-0 overflow-hidden"
         >
           {/* Fade out instead of "..." */}
           <div className="relative overflow-hidden">
