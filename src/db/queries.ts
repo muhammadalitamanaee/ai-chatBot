@@ -79,3 +79,30 @@ export async function renameThread(
     .set({ title })
     .where(and(eq(threads.id, threadId), eq(threads.userId, userId)));
 }
+
+import { settings } from "./schema";
+import type { NewSettings } from "./schema";
+
+// Get user's settings — returns null if user has never saved settings
+export async function getUserSettings(userId: string) {
+  const result = await db
+    .select()
+    .from(settings)
+    .where(eq(settings.userId, userId));
+  return result[0] ?? null;
+}
+
+// Save settings — insert if first time, update if exists
+export async function saveUserSettings(data: NewSettings) {
+  await db
+    .insert(settings)
+    .values(data)
+    .onConflictDoUpdate({
+      target: settings.userId,
+      set: {
+        systemPrompt: data.systemPrompt,
+        model: data.model,
+        updatedAt: new Date(),
+      },
+    });
+}

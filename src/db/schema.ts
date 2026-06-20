@@ -45,6 +45,30 @@ export const messages = pgTable("chat_messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const settings = pgTable("chat_settings", {
+  // userId is both the primary key and foreign key
+  // one settings row per user, no more
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+
+  // The system prompt — instructs the AI how to behave
+  // null means no system prompt (use model default)
+  systemPrompt: text("system_prompt"),
+
+  // Which model the user has selected
+  // default to our primary OpenRouter model
+  model: text("model")
+    .default("meta-llama/llama-3.3-70b-instruct:free")
+    .notNull(),
+
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+
+
+export type Settings = typeof settings.$inferSelect;
+export type NewSettings = typeof settings.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Thread = typeof threads.$inferSelect;

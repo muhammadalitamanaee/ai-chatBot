@@ -7,13 +7,14 @@ import { ChatInput } from "@/components/chat/ChatInput";
 import { ThreadItem } from "@/components/sidebar/ThreadItem";
 import { ThreadSkeleton } from "@/components/sidebar/ThreadSkeleton";
 import { UserPanel } from "@/components/sidebar/UserPanel";
+import { SettingsDrawer } from "@/components/settings/SettingsDrawer";
 import type { Thread } from "@/db/schema";
-import { SessionProvider } from "next-auth/react";
 
 export default function Home() {
   const [activeThread, setActiveThread] = useState<Thread | null>(null);
   const [threads, setThreads] = useState<Thread[]>([]);
-  const [isLoadingThreads, setIsLoadingThreads] = useState(false);
+  const [isLoadingThreads, setIsLoadingThreads] = useState(true);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -26,21 +27,13 @@ export default function Home() {
   } = useChat(activeThread?.id ?? "");
 
   useEffect(() => {
-    const loadThreads = async () => {
-      setIsLoadingThreads(true);
-      try {
-        const response = await fetch("/api/threads");
-        const data = await response.json();
-
+    fetch("/api/threads")
+      .then((r) => r.json())
+      .then((data) => {
         setThreads(data);
-      } catch (error) {
-        console.error(error);
-      } finally {
         setIsLoadingThreads(false);
-      }
-    };
-
-    loadThreads();
+      })
+      .catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -100,7 +93,6 @@ export default function Home() {
     <div className="flex h-screen bg-neutral-50 dark:bg-neutral-900">
       {/* Sidebar */}
       <aside className="w-64 bg-white dark:bg-neutral-800 border-r border-neutral-200 dark:border-neutral-700 flex flex-col">
-        {/* New chat */}
         <div className="p-4 border-b border-neutral-200 dark:border-neutral-700">
           <button
             onClick={handleNewChat}
@@ -110,10 +102,8 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Thread list */}
         <div className="flex-1 overflow-y-auto p-2">
           {isLoadingThreads ? (
-            // Show skeletons while loading
             <>
               <ThreadSkeleton />
               <ThreadSkeleton />
@@ -137,10 +127,7 @@ export default function Home() {
           )}
         </div>
 
-        {/* User panel at bottom */}
-        <SessionProvider>
-          <UserPanel />
-        </SessionProvider>
+        <UserPanel />
       </aside>
 
       {/* Main area */}
@@ -149,11 +136,36 @@ export default function Home() {
           <h1 className="font-semibold text-neutral-800 dark:text-neutral-100 text-sm truncate">
             {activeThread?.title ?? "Select or start a conversation"}
           </h1>
-          {activeThread && (
-            <span className="text-xs text-neutral-400 flex-shrink-0 ml-4">
-              {messages.length} messages
-            </span>
-          )}
+
+          <div className="flex items-center gap-3 flex-shrink-0 ml-4">
+            {activeThread && (
+              <span className="text-xs text-neutral-400">
+                {messages.length} messages
+              </span>
+            )}
+
+            {/* Settings button */}
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700"
+              title="Settings"
+            >
+              {/* Gear icon */}
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </button>
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto px-4 py-6">
@@ -206,6 +218,12 @@ export default function Home() {
           />
         )}
       </div>
+
+      {/* Settings drawer */}
+      <SettingsDrawer
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </div>
   );
 }
