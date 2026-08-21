@@ -6,6 +6,8 @@ import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useState } from "react";
 import type { Message } from "@/types/index";
 import remarkGfm from "remark-gfm"; // ← add this
+import { AgentSteps } from "./AgentSteps";
+import { Sources } from "./Sources";
 
 // Copy button for code blocks
 function CopyButton({ text }: { text: string }) {
@@ -69,14 +71,14 @@ export function MessageBubble({ message }: { message: Message }) {
               remarkPlugins={[remarkGfm]}
               components={{
                 // Custom code block renderer with syntax highlighting
-                code({ node, className, children, ...props }) {
+                code({ className, children, ...props }) {
                   const match = /language-(\w+)/.exec(className || "");
                   const codeString = String(children).replace(/\n$/, "");
                   const isBlock = !!match;
 
                   return isBlock ? (
                     // Multi-line code block with syntax highlighting
-                    <div className="relative my-3 rounded-xl overflow-hidden">
+                    <div dir="ltr" className="relative my-3 rounded-xl overflow-hidden">
                       {/* Language label */}
                       <div className="flex items-center justify-between px-4 py-2 bg-neutral-800 dark:bg-neutral-900">
                         <span className="text-xs text-neutral-400 font-mono">
@@ -153,6 +155,10 @@ export function MessageBubble({ message }: { message: Message }) {
             {message.isStreaming && (
               <span className="inline-block w-[2px] h-4 bg-neutral-400 ml-0.5 align-middle animate-pulse" />
             )}
+
+            {/* Agentic loop steps + cited sources (from saved metadata) */}
+            <AgentSteps steps={message.metadata?.steps} />
+            <Sources sources={message.metadata?.sources} />
           </div>
         )}
       </div>

@@ -1,0 +1,76 @@
+
+> my-app@0.1.0 ingest
+> tsx --env-file=.env.local scripts/ingest.ts
+
+[ingest] Starting full ingestion pipeline...
+[ingest] Fetching tarball from https://github.com/liara-cloud/docs/archive/refs/heads/master.tar.gz
+[ingest] Extracting public/llms/...
+[ingest] Extracted llms dir: E:\ai chatBot\ai-chatBot\data\liara-docs-extract\docs-master\public\llms
+[ingest] Found 1143 markdown files
+[ingest] Parsed 1143 docs, skipped 0
+[ingest] Generated 6134 chunks from 1143 docs
+[ingest] Processing 6134 chunks in batches of 100
+[ingest] 100/6134 processed (inserted=0, unchanged=100)
+[ingest] 200/6134 processed (inserted=0, unchanged=200)
+[ingest] 300/6134 processed (inserted=0, unchanged=300)
+[ingest] 400/6134 processed (inserted=0, unchanged=400)
+[ingest] 500/6134 processed (inserted=0, unchanged=500)
+[ingest] 600/6134 processed (inserted=0, unchanged=600)
+[ingest] 700/6134 processed (inserted=0, unchanged=700)
+[ingest] 800/6134 processed (inserted=0, unchanged=800)
+[ingest] 900/6134 processed (inserted=0, unchanged=900)
+[ingest] 1000/6134 processed (inserted=0, unchanged=1000)
+[ingest] 1100/6134 processed (inserted=100, unchanged=1000)
+[ingest] 1200/6134 processed (inserted=200, unchanged=1000)
+[ingest] 1300/6134 processed (inserted=300, unchanged=1000)
+[ingest] 1400/6134 processed (inserted=400, unchanged=1000)
+[ingest] 1500/6134 processed (inserted=500, unchanged=1000)
+[ingest] 1600/6134 processed (inserted=600, unchanged=1000)
+[ingest] 1700/6134 processed (inserted=700, unchanged=1000)
+[ingest] 1800/6134 processed (inserted=800, unchanged=1000)
+[ingest] 1900/6134 processed (inserted=900, unchanged=1000)
+[ingest] 2000/6134 processed (inserted=1000, unchanged=1000)
+[ingest] 2100/6134 processed (inserted=1100, unchanged=1000)
+[ingest] 2200/6134 processed (inserted=1200, unchanged=1000)
+[ingest] 2300/6134 processed (inserted=1300, unchanged=1000)
+[ingest] 2400/6134 processed (inserted=1400, unchanged=1000)
+[ingest] 2500/6134 processed (inserted=1500, unchanged=1000)
+[ingest] 2600/6134 processed (inserted=1600, unchanged=1000)
+[ingest] 2700/6134 processed (inserted=1700, unchanged=1000)
+[ingest] 2800/6134 processed (inserted=1800, unchanged=1000)
+[ingest] 2900/6134 processed (inserted=1900, unchanged=1000)
+[ingest] 3000/6134 processed (inserted=2000, unchanged=1000)
+[ingest] 3100/6134 processed (inserted=2100, unchanged=1000)
+[ingest] 3200/6134 processed (inserted=2200, unchanged=1000)
+[ingest] 3300/6134 processed (inserted=2300, unchanged=1000)
+[ingest] 3400/6134 processed (inserted=2400, unchanged=1000)
+[ingest] 3500/6134 processed (inserted=2500, unchanged=1000)
+[ingest] 3600/6134 processed (inserted=2600, unchanged=1000)
+[ingest] 3700/6134 processed (inserted=2700, unchanged=1000)
+[ingest] 3800/6134 processed (inserted=2800, unchanged=1000)
+[ingest] 3900/6134 processed (inserted=2900, unchanged=1000)
+[ingest] 4000/6134 processed (inserted=3000, unchanged=1000)
+[ingest] 4100/6134 processed (inserted=3100, unchanged=1000)
+[ingest] 4200/6134 processed (inserted=3200, unchanged=1000)
+[ingest] 4300/6134 processed (inserted=3300, unchanged=1000)
+[ingest] 4400/6134 processed (inserted=3400, unchanged=1000)
+[ingest] 4500/6134 processed (inserted=3500, unchanged=1000)
+[ingest] 4600/6134 processed (inserted=3600, unchanged=1000)
+[ingest] 4700/6134 processed (inserted=3700, unchanged=1000)
+[ingest] 4800/6134 processed (inserted=3800, unchanged=1000)
+[ingest] 4900/6134 processed (inserted=3900, unchanged=1000)
+[ingest] 5000/6134 processed (inserted=4000, unchanged=1000)
+[ingest] 5100/6134 processed (inserted=4100, unchanged=1000)
+[ingest] 5200/6134 processed (inserted=4200, unchanged=1000)
+[ingest] 5300/6134 processed (inserted=4300, unchanged=1000)
+[ingest] 5400/6134 processed (inserted=4400, unchanged=1000)
+[ingest] 5500/6134 processed (inserted=4500, unchanged=1000)
+[ingest] 5600/6134 processed (inserted=4600, unchanged=1000)
+[ingest] 5700/6134 processed (inserted=4700, unchanged=1000)
+[ingest] 5800/6134 processed (inserted=4800, unchanged=1000)
+[ingest] 5900/6134 processed (inserted=4900, unchanged=1000)
+[ingest] 6000/6134 processed (inserted=5000, unchanged=1000)
+[ingest] 6100/6134 processed (inserted=5100, unchanged=1000)
+[ingest] 6134/6134 processed (inserted=5134, unchanged=1000)
+[ingest] Pipeline complete. inserted/updated=5134, unchanged=1000
+Ingestion completed successfully

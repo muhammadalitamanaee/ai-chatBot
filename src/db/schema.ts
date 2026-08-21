@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, integer, jsonb, vector } from "drizzle-orm/pg-core";
 
 // ---------------------------------------------------------
 // USERS TABLE
@@ -42,6 +42,9 @@ export const messages = pgTable("chat_messages", {
     .references(() => threads.id, { onDelete: "cascade" }),
   role: text("role", { enum: ["user", "assistant"] }).notNull(),
   content: text("content").notNull(),
+  // Evidence/citations, agent steps and model used, so historical messages
+  // render identically. Never persist chain-of-thought.
+  metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -62,16 +65,43 @@ export const settings = pgTable("chat_settings", {
     .default("meta-llama/llama-3.3-70b-instruct:free")
     .notNull(),
 
+  // Personalization: how detailed the assistant should be.
+  answerDepth: text("answer_depth").default("beginner").notNull(),
+
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-
+// ---------------------------------------------------------
+// DOC CHUNKS TABLE
+// Stores embedded chunks from Liara documentation.
+// Each row is one chunk from one markdown file.
+// content_hash enables idempotent incremental ingestion.
+// embedding_model prevents mixing vector spaces.
+// ---------------------------------------------------------
+export const docChunks = pgTable("doc_chunks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  service: text("service").notNull(),
+  path: text("path").notNull(),
+  title: text("title").notNull(),
+  sourceUrl: text("source_url").notNull(),
+  heading: text("heading"),
+  chunkText: text("chunk_text").notNull(),
+  chunkIndex: integer("chunk_index").notNull(),
+  contentHash: text("content_hash").notNull(),
+  embeddingModel: text("embedding_model").notNull(),
+  embedding: vector("embedding", { dimensions: 1024 }),
+  metadata: jsonb("metadata"),
+  indexedAt: timestamp("indexed_at").defaultNow().notNull(),
+});
 
 export type Settings = typeof settings.$inferSelect;
 export type NewSettings = typeof settings.$inferInsert;
+export type MessageRow = typeof messages.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Thread = typeof threads.$inferSelect;
 export type NewThread = typeof threads.$inferInsert;
 export type Message = typeof messages.$inferSelect;
 export type NewMessage = typeof messages.$inferInsert;
+export type DocChunk = typeof docChunks.$inferSelect;
+export type NewDocChunk = typeof docChunks.$inferInsert;

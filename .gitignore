@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# downloaded Liara documentation used during ingestion
+/data/
+
 # next.js
 /.next/
 /out/

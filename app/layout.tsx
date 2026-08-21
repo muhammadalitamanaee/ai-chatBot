@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Vazirmatn } from "next/font/google";
 import "./globals.css";
 
-const geist = Geist({ subsets: ["latin"] });
+const vazirmatn = Vazirmatn({
+  subsets: ["latin"],
+  variable: "--font-vazirmatn",
+});
 
 export const metadata: Metadata = {
-  title: "AI Chatbot",
-  description: "Your personal AI assistant",
+  title: "دستیار لیارا",
+  description: "دستیار هوشمند مستندات لیارا",
 };
 
 export default function RootLayout({
@@ -15,11 +18,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    // Add 'dark' class here to enable dark mode globally
-    // Remove it to go back to light mode
-    // Later you can toggle this dynamically with a button
-    <html lang="en" className="">
-      <body className={`${geist.className} antialiased`}>{children}</body>
+    // Persian-first, RTL. Code/URLs are isolated as LTR at their use sites.
+    <html lang="fa" dir="rtl">
+      <body className={`${vazirmatn.variable} font-sans antialiased`}>
+        {children}
+      </body>
     </html>
   );
 }

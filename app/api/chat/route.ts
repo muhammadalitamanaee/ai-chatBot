@@ -3,66 +3,21 @@ export const maxDuration = 60;
 
 import { NextRequest } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getClientForModel, PROVIDERS, type ProviderName } from '@/lib/providers';
-import { saveMessage, touchThread, renameThread, getMessagesByThread, getUserSettings } from '@/db/queries';
+import {
+  saveMessage,
+  touchThread,
+  renameThread,
+  getMessagesByThread,
+  getUserSettings,
+} from '@/db/queries';
 import type { ChatRequest } from '@/types/index';
-import type { Stream } from 'openai/streaming';
-import type { ChatCompletionChunk } from 'openai/resources/chat/completions';
-
-async function tryWithModel(
-  modelId: string,
-  messages: { role: 'user' | 'assistant' | 'system'; content: string }[]
-): Promise<Stream<ChatCompletionChunk>> {
-  const { client, model } = getClientForModel(modelId);
-
-  const completionPromise = client.chat.completions.create({
-    model,
-    messages,
-    max_tokens: 1024,
-    stream: true as const,
-  });
-
-  const completion = await Promise.race([
-    completionPromise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`Model ${modelId} timed out`)), 15000)
-    ),
-  ]);
-
-  return completion as Stream<ChatCompletionChunk>;
-}
-
-async function tryFallback(
-  messages: { role: 'user' | 'assistant' | 'system'; content: string }[]
-): Promise<Stream<ChatCompletionChunk>> {
-  // Fallback chain when user's selected model fails
-  const fallbackChain: ProviderName[] = ['openrouter', 'gapgpt'];
-
-  for (const providerName of fallbackChain) {
-    try {
-      const provider = PROVIDERS[providerName];
-      const client = provider.client();
-
-      const completion = await Promise.race([
-        client.chat.completions.create({
-          model: provider.model,
-          messages,
-          max_tokens: 1024,
-          stream: true as const,
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Fallback timed out')), 15000)
-        ),
-      ]);
-
-      return completion as Stream<ChatCompletionChunk>;
-    } catch {
-      continue;
-    }
-  }
-
-  throw new Error('All providers failed');
-}
+import {
+  runAgent,
+  buildGroundedPrompt,
+  type AnswerDepth,
+} from '@/lib/agent';
+import { tryStream, withFallback } from '@/lib/llm';
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -80,17 +35,16 @@ export async function POST(req: NextRequest) {
     const { messages: chatMessages, threadId } = body;
     const userMessage = chatMessages[chatMessages.length - 1];
 
-    // Load user's settings to get their model + system prompt
     const userSettings = await getUserSettings(session.user.id);
-    const selectedModel = userSettings?.model ?? 'openai/gpt-oss-20b:free';
-    const systemPrompt = userSettings?.systemPrompt;
+    const answerDepth: AnswerDepth =
+      userSettings?.answerDepth === "professional" ? "professional" : "beginner";
+
+    // Preserve the user's optional custom system prompt, but the copilot
+    // grounding lives in the agent system prompt.
+    const customPrompt = userSettings?.systemPrompt?.trim();
 
     // Save user message
-    await saveMessage({
-      threadId,
-      role: 'user',
-      content: userMessage.content,
-    });
+    await saveMessage({ threadId, role: 'user', content: userMessage.content });
 
     // Auto-title on first message
     const existingMessages = await getMessagesByThread(threadId, session.user.id);
@@ -102,59 +56,96 @@ export async function POST(req: NextRequest) {
       await renameThread(threadId, title, session.user.id);
     }
 
-    // Build messages array — prepend system prompt if set
-    const messages: { role: 'user' | 'assistant' | 'system'; content: string }[] = [
-      // Only add system message if user has set one
-      ...(systemPrompt?.trim()
-        ? [{ role: 'system' as const, content: systemPrompt }]
-        : []
-      ),
-      ...chatMessages.map(({ role, content }) => ({
-        role: role as 'user' | 'assistant' | 'system',
-        content,
-      })),
-    ];
+    // Build history for the agent, dropping the system role it may carry.
+    const history: ChatCompletionMessageParam[] = chatMessages
+      .slice(0, -1)
+      .filter((m) => m.role !== 'system')
+      .map((m) => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.content,
+      }));
 
-    let completion: Stream<ChatCompletionChunk>;
+    // 1) Agentic loop (intent + tools → evidence / clarifying question)
+    const outcome = await runAgent({
+      question: userMessage.content,
+      history,
+      answerDepth,
+    });
 
-    try {
-      // Try user's selected model first
-      completion = await tryWithModel(selectedModel, messages);
-    } catch {
-      console.log(`[/api/chat] Selected model ${selectedModel} failed, trying fallback`);
-      try {
-        // Fall back to default chain
-        completion = await tryFallback(messages);
-      } catch {
-        return new Response('All AI providers are currently unavailable.', {
+    // Decide what text to stream.
+    let text: string;
+    let modelUsed = '';
+    let realStream: Awaited<ReturnType<typeof tryStream>> | null = null;
+
+    if (outcome.kind === 'ask') {
+      text = outcome.question ?? 'برای ادامه لطفاً توضیح بیشتری بده.';
+    } else if (outcome.kind === 'answer' && outcome.answer) {
+      text = outcome.answer;
+    } else {
+      // kind === 'rag' → stream a freshly grounded answer from evidence.
+      const grounded: ChatCompletionMessageParam = buildGroundedPrompt(
+        userMessage.content,
+        outcome.evidence,
+        answerDepth,
+      );
+      const messagesForGen: ChatCompletionMessageParam[] = [
+        { role: 'system', content: customPrompt ? `${customPrompt}\n\n` : '' },
+        grounded,
+      ].filter((m) => m.content !== '') as ChatCompletionMessageParam[];
+
+      const res = await withFallback((modelId) => tryStream(modelId, messagesForGen));
+      realStream = res.value;
+      modelUsed = res.model;
+
+      if (!realStream) {
+        return new Response('همهٔ مدل‌های هوش مصنوعی در دسترس نیستند.', {
           status: 503,
         });
       }
     }
 
-    let fullResponse = '';
+    const sources = outcome.evidence.map((e) => ({
+      title: e.title,
+      url: e.sourceUrl,
+    }));
+    const steps = outcome.steps;
+    const agentic = outcome.usesTools || outcome.kind === 'ask';
 
-    const readable = new ReadableStream({
+    const encoder = new TextEncoder();
+
+    // 2) Either stream the already-produced text, or real-time from a model.
+    const readable = new ReadableStream<Uint8Array>({
       async start(controller) {
-        const encoder = new TextEncoder();
         try {
-          for await (const chunk of completion) {
-            const token = chunk.choices[0]?.delta?.content;
-            if (token) {
-              fullResponse += token;
-              controller.enqueue(encoder.encode(token));
+          if (realStream) {
+            let full = '';
+            for await (const chunk of realStream) {
+              const token = chunk.choices[0]?.delta?.content;
+              if (token) {
+                full += token;
+                controller.enqueue(encoder.encode(token));
+              }
             }
+            text = full;
+          } else {
+            controller.enqueue(encoder.encode(text));
           }
 
           await saveMessage({
             threadId,
             role: 'assistant',
-            content: fullResponse,
+            content: text,
+            metadata: {
+              sources,
+              steps,
+              ...(modelUsed ? { model: modelUsed } : {}),
+              agentic,
+            },
           });
 
           await touchThread(threadId);
-
         } catch (err) {
+          console.error('[api/chat] stream error:', err);
           controller.error(err);
         } finally {
           controller.close();
@@ -167,10 +158,9 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'text/plain; charset=utf-8',
         'X-Accel-Buffering': 'no',
         'Cache-Control': 'no-cache',
-        'X-Model-Used': selectedModel,
+        'X-Model-Used': modelUsed || 'agent',
       },
     });
-
   } catch (err) {
     console.error('[/api/chat] Unexpected error:', err);
     const message = err instanceof Error ? err.message : 'Unknown error';

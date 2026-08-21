@@ -25,43 +25,44 @@ export function useChat(threadId: string) {
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Load message history (with metadata) — reusable both on thread change
+  // and to refresh sources/steps after a stream completes.
+  const loadHistory = useCallback(async () => {
+    if (!threadId) return;
+    setMessages([]);
+    setIsLoadingHistory(true);
+    try {
+      const res = await fetch(`/api/threads/${threadId}/messages`);
+      if (!res.ok) throw new Error("Failed to load history");
+      const data = await res.json();
+      setMessages(
+        data.map(
+          (m: {
+            id: string;
+            role: "user" | "assistant";
+            content: string;
+            metadata?: import("@/types/index").MessageMeta;
+          }) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            isStreaming: false,
+            metadata: m.metadata ?? undefined,
+          }),
+        ),
+      );
+    } catch (err) {
+      console.error("Failed to load history:", err);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }, [threadId]);
+
   // Load message history whenever threadId changes
   useEffect(() => {
-    if (!threadId) return;
-
-    async function loadHistory() {
-      setMessages([]);
-      setIsLoadingHistory(true);
-
-      try {
-        const res = await fetch(`/api/threads/${threadId}/messages`);
-        if (!res.ok) throw new Error("Failed to load history");
-
-        const data = await res.json();
-
-        setMessages(
-          data.map(
-            (m: {
-              id: string;
-              role: "user" | "assistant";
-              content: string;
-            }) => ({
-              id: m.id,
-              role: m.role,
-              content: m.content,
-              isStreaming: false,
-            }),
-          ),
-        );
-      } catch (err) {
-        console.error("Failed to load history:", err);
-      } finally {
-        setIsLoadingHistory(false);
-      }
-    }
-
-    loadHistory();
-  }, [threadId]);
+    const t = setTimeout(() => void loadHistory(), 0);
+    return () => clearTimeout(t);
+  }, [loadHistory]);
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -132,8 +133,11 @@ export function useChat(threadId: string) {
         setIsLoading(false);
         abortControllerRef.current = null;
       }
+
+      // Refresh history so the reply's metadata (sources + agent steps) show.
+      await loadHistory();
     },
-    [messages, isLoading, threadId],
+    [messages, isLoading, threadId, loadHistory],
   );
 
   const stopStreaming = useCallback(() => {

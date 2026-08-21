@@ -80,3 +80,14 @@ export const PROVIDERS = {
 } as const;
 
 export type ProviderName = keyof typeof PROVIDERS;
+
+// ---------------------------------------------------------
+// Aval AI client (for embeddings and generation)
+// https://api.avalai.ir/v1 — OpenAI-compatible
+// ---------------------------------------------------------
+export function getAvalClient() {
+  return new OpenAI({
+    apiKey: process.env.AVALAI_API_KEY!,
+    baseURL: "https://api.avalai.ir/v1",
+  });
+}
