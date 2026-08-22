@@ -18,6 +18,7 @@ import {
 } from '@/lib/agent';
 import { tryStream, withFallback } from '@/lib/llm';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { logEvent } from '@/lib/log';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 export async function POST(req: NextRequest) {
@@ -25,6 +26,8 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) {
     return new Response('Unauthorized', { status: 401 });
   }
+
+  const startTime = Date.now();
 
   try {
     // Neon-backed per-user rate limit — before any embedding/LLM cost.
@@ -85,6 +88,14 @@ export async function POST(req: NextRequest) {
       answerDepth,
     });
 
+    logEvent("agent.outcome", {
+      kind: outcome.kind,
+      usesTools: outcome.usesTools,
+      steps: outcome.steps.length,
+      evidence: outcome.evidence.length,
+      tookMs: Date.now() - startTime,
+    });
+
     // Decide what text to stream.
     let text: string;
     let modelUsed = '';
@@ -111,6 +122,7 @@ export async function POST(req: NextRequest) {
       modelUsed = res.model;
 
       if (!realStream) {
+        logEvent("chat.all_models_failed", { tookMs: Date.now() - startTime });
         return new Response('همهٔ مدل‌های هوش مصنوعی در دسترس نیستند.', {
           status: 503,
         });
@@ -144,6 +156,13 @@ export async function POST(req: NextRequest) {
             controller.enqueue(encoder.encode(text));
           }
 
+          logEvent("chat.completed", {
+            model: modelUsed || "agent",
+            kind: outcome.kind,
+            ansChars: text.length,
+            tookMs: Date.now() - startTime,
+          });
+
           await saveMessage({
             threadId,
             role: 'assistant',
@@ -158,7 +177,9 @@ export async function POST(req: NextRequest) {
 
           await touchThread(threadId);
         } catch (err) {
-          console.error('[api/chat] stream error:', err);
+          logEvent("chat.stream_error", {
+            message: err instanceof Error ? err.message : "unknown",
+          });
           controller.error(err);
         } finally {
           controller.close();
@@ -175,7 +196,10 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err) {
-    console.error('[/api/chat] Unexpected error:', err);
+    logEvent("chat.failed", {
+      message: err instanceof Error ? err.message : "unknown",
+      tookMs: Date.now() - startTime,
+    });
     const message = err instanceof Error ? err.message : 'Unknown error';
     return new Response(message, { status: 500 });
   }
