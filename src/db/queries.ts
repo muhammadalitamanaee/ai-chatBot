@@ -1,4 +1,4 @@
-import { eq, asc, and } from "drizzle-orm";
+import { eq, asc, desc, and } from "drizzle-orm";
 import { db } from "./index";
 import { threads, messages, users } from "./schema";
 import type { NewMessage, NewUser } from "./schema";
@@ -28,7 +28,7 @@ export async function getAllThreads(userId: string) {
     .select()
     .from(threads)
     .where(eq(threads.userId, userId))
-    .orderBy(threads.updatedAt);
+    .orderBy(desc(threads.updatedAt));
 }
 
 export async function touchThread(threadId: string) {
