@@ -3,8 +3,9 @@ import { Vazirmatn } from "next/font/google";
 import "./globals.css";
 
 const vazirmatn = Vazirmatn({
-  subsets: ["latin"],
+  subsets: ["arabic", "latin"],
   variable: "--font-vazirmatn",
+  display: "swap",
 });
 
 export const metadata: Metadata = {

@@ -42,6 +42,15 @@ export function fallbackOf(e: Evidence): Pick<Evidence, "method" | "endpoint"> {
 }
 
 const RRF_K = 60;
+const MIN_VECTOR_SCORE = 0.5;
+const MIN_KEYWORD_SCORE = 0.08;
+
+export function hasRelevantEvidence(evidence: Evidence): boolean {
+  return (
+    (evidence.vectorScore ?? 0) >= MIN_VECTOR_SCORE ||
+    (evidence.keywordScore ?? 0) >= MIN_KEYWORD_SCORE
+  );
+}
 
 // ---------------------------------------------------------
 // Semantic search via pgvector cosine distance (<=>).
@@ -252,13 +261,14 @@ export async function hybridSearch(
     .sort((a, b) => b.rrf - a.rrf)
     .slice(0, topK);
 
-  return {
-    usedVector,
-    results: ranked.map(({ evidence, rrf, vec, kw }) => ({
+  const results = ranked
+    .map(({ evidence, rrf, vec, kw }) => ({
       ...evidence,
       rrfScore: rrf,
       ...(vec ? { vectorScore: vec.item.vectorScore } : {}),
       ...(kw ? { keywordScore: kw.item.keywordScore } : {}),
-    })),
-  };
+    }))
+    .filter(hasRelevantEvidence);
+
+  return { usedVector, results };
 }

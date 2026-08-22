@@ -11,9 +11,6 @@ async function main() {
   console.log(
     `rows=${r[0].n} paths=${r[0].paths} services=${r[0].services} dims=${r[0].min_d}..${r[0].max_d} models=${r[0].models}`,
   );
-  const tops = await sql`
-    SELECT service, count(*)::int c ORDER BY 1 LIMIT 1 FROM (SELECT service FROM doc_chunks) t GROUP BY 1 ORDER BY 1;
-  `.catch(() => null);
   const perService = await sql`
     SELECT service, count(*)::int c FROM doc_chunks GROUP BY service ORDER BY c DESC LIMIT 8;
   `;

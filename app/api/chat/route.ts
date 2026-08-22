@@ -1,160 +1,154 @@
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 export const maxDuration = 60;
 
-import { NextRequest } from 'next/server';
-import { auth } from '@/lib/auth';
+import { NextRequest } from "next/server";
+import { auth } from "@/lib/auth";
 import {
   saveMessage,
   touchThread,
   renameThread,
   getMessagesByThread,
   getUserSettings,
-} from '@/db/queries';
-import type { ChatRequest } from '@/types/index';
-import {
-  runAgent,
-  buildGroundedPrompt,
-  type AnswerDepth,
-} from '@/lib/agent';
-import { tryStream, withFallback } from '@/lib/llm';
-import { checkRateLimit } from '@/lib/rateLimit';
-import { logEvent } from '@/lib/log';
-import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+} from "@/db/queries";
+import type { ChatRequest, ChatStreamEvent, MessageMeta } from "@/types/index";
+import { runAgent, buildGroundedPrompt, type AnswerDepth } from "@/lib/agent";
+import { tryStream, withFallback } from "@/lib/llm";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { logEvent } from "@/lib/log";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session?.user?.id) {
-    return new Response('Unauthorized', { status: 401 });
-  }
+  if (!session?.user?.id) return new Response("Unauthorized", { status: 401 });
 
   const startTime = Date.now();
 
   try {
-    // Neon-backed per-user rate limit — before any embedding/LLM cost.
     const rl = await checkRateLimit(session.user.id);
     if (!rl.allowed) {
       return new Response(
         `بیش از حد مجاز درخواست دادی. بعد از ${rl.retryAfterSec} ثانیه دوباره تلاش کن.`,
-        {
-          status: 429,
-          headers: { 'Retry-After': String(rl.retryAfterSec) },
-        },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
       );
     }
 
     const body: ChatRequest = await req.json();
-
-    if (!body.messages || body.messages.length === 0) {
-      return new Response('Messages are required', { status: 400 });
+    if (!body.messages?.length || !body.threadId) {
+      return new Response("درخواست نامعتبر است.", { status: 400 });
     }
 
     const { messages: chatMessages, threadId } = body;
-    const userMessage = chatMessages[chatMessages.length - 1];
-
+    const userMessage = chatMessages.at(-1)!;
     const userSettings = await getUserSettings(session.user.id);
     const answerDepth: AnswerDepth =
       userSettings?.answerDepth === "professional" ? "professional" : "beginner";
-
-    // Preserve the user's optional custom system prompt, but the copilot
-    // grounding lives in the agent system prompt.
     const customPrompt = userSettings?.systemPrompt?.trim();
 
-    // Save user message
-    await saveMessage({ threadId, role: 'user', content: userMessage.content });
-
-    // Auto-title on first message
+    await saveMessage({ threadId, role: "user", content: userMessage.content });
     const existingMessages = await getMessagesByThread(threadId, session.user.id);
-    const isFirstMessage = existingMessages.length === 1;
-    if (isFirstMessage) {
-      const title = userMessage.content.length > 40
-        ? userMessage.content.slice(0, 40).trimEnd() + '...'
-        : userMessage.content;
+    if (existingMessages.length === 1) {
+      const title =
+        userMessage.content.length > 40
+          ? `${userMessage.content.slice(0, 40).trimEnd()}...`
+          : userMessage.content;
       await renameThread(threadId, title, session.user.id);
     }
 
-    // Build history for the agent, dropping the system role it may carry.
     const history: ChatCompletionMessageParam[] = chatMessages
       .slice(0, -1)
-      .filter((m) => m.role !== 'system')
+      .filter((m) => m.role !== "system")
       .map((m) => ({
-        role: m.role === 'assistant' ? 'assistant' : 'user',
+        role: m.role === "assistant" ? "assistant" : "user",
         content: m.content,
       }));
 
-    // 1) Agentic loop (intent + tools → evidence / clarifying question)
-    const outcome = await runAgent({
-      question: userMessage.content,
-      history,
-      answerDepth,
-    });
-
-    logEvent("agent.outcome", {
-      kind: outcome.kind,
-      usesTools: outcome.usesTools,
-      steps: outcome.steps.length,
-      evidence: outcome.evidence.length,
-      tookMs: Date.now() - startTime,
-    });
-
-    // Decide what text to stream.
-    let text: string;
-    let modelUsed = '';
-    let realStream: Awaited<ReturnType<typeof tryStream>> | null = null;
-
-    if (outcome.kind === 'ask') {
-      text = outcome.question ?? 'برای ادامه لطفاً توضیح بیشتری بده.';
-    } else if (outcome.kind === 'answer' && outcome.answer) {
-      text = outcome.answer;
-    } else {
-      // kind === 'rag' → stream a freshly grounded answer from evidence.
-      const grounded: ChatCompletionMessageParam = buildGroundedPrompt(
-        userMessage.content,
-        outcome.evidence,
-        answerDepth,
-      );
-      const messagesForGen: ChatCompletionMessageParam[] = [
-        { role: 'system', content: customPrompt ? `${customPrompt}\n\n` : '' },
-        grounded,
-      ].filter((m) => m.content !== '') as ChatCompletionMessageParam[];
-
-      const res = await withFallback((modelId) => tryStream(modelId, messagesForGen));
-      realStream = res.value;
-      modelUsed = res.model;
-
-      if (!realStream) {
-        logEvent("chat.all_models_failed", { tookMs: Date.now() - startTime });
-        return new Response('همهٔ مدل‌های هوش مصنوعی در دسترس نیستند.', {
-          status: 503,
-        });
-      }
-    }
-
-    const sources = outcome.evidence.map((e) => ({
-      title: e.title,
-      url: e.sourceUrl,
-    }));
-    const steps = outcome.steps;
-    const agentic = outcome.usesTools || outcome.kind === 'ask';
-
     const encoder = new TextEncoder();
+    const event = (value: ChatStreamEvent) => encoder.encode(`${JSON.stringify(value)}\n`);
 
-    // 2) Either stream the already-produced text, or real-time from a model.
     const readable = new ReadableStream<Uint8Array>({
       async start(controller) {
+        let text = "";
+        let modelUsed = "";
+        let metadata: MessageMeta = {};
+
+        const emit = (value: ChatStreamEvent) => controller.enqueue(event(value));
+
         try {
-          if (realStream) {
-            let full = '';
-            for await (const chunk of realStream) {
+          emit({ type: "status", message: "در حال بررسی درخواست…" });
+
+          const outcome = await runAgent({
+            question: userMessage.content,
+            history,
+            answerDepth,
+            onStep(step) {
+              emit({ type: "step", step });
+            },
+          });
+
+          logEvent("agent.outcome", {
+            kind: outcome.kind,
+            usesTools: outcome.usesTools,
+            steps: outcome.steps.length,
+            evidence: outcome.evidence.length,
+            tookMs: Date.now() - startTime,
+          });
+
+          const sources = outcome.evidence.map((e) => ({
+            title: e.title,
+            url: e.sourceUrl,
+          }));
+          metadata = {
+            sources,
+            steps: outcome.steps,
+            agentic: outcome.usesTools || outcome.kind === "ask",
+          };
+
+          if (outcome.kind === "ask") {
+            text = outcome.question ?? "برای ادامه لطفاً کمی بیشتر توضیح بده.";
+            emit({ type: "delta", text });
+          } else if (outcome.kind === "answer" && outcome.answer) {
+            text = outcome.answer;
+            emit({ type: "delta", text });
+          } else if (outcome.evidence.length === 0) {
+            text = "برای این پرسش منبع معتبری در مستندات لیارا پیدا نکردم و نمی‌خواهم حدس بزنم. لطفاً نام سرویس یا متن دقیق خطا را بفرست.";
+            emit({ type: "delta", text });
+          } else {
+            emit({ type: "status", message: "در حال آماده‌کردن پاسخ مستند…" });
+            const grounded = buildGroundedPrompt(
+              userMessage.content,
+              outcome.evidence,
+              answerDepth,
+            );
+            const messagesForGen: ChatCompletionMessageParam[] = [
+              ...(customPrompt
+                ? [{ role: "system" as const, content: customPrompt }]
+                : []),
+              grounded,
+            ];
+            const result = await withFallback((modelId) =>
+              tryStream(modelId, messagesForGen),
+            );
+            const stream = result.value;
+            modelUsed = result.model;
+            if (!stream) throw new Error("همهٔ مدل‌های هوش مصنوعی در دسترس نیستند.");
+
+            metadata.model = modelUsed;
+            for await (const chunk of stream) {
               const token = chunk.choices[0]?.delta?.content;
               if (token) {
-                full += token;
-                controller.enqueue(encoder.encode(token));
+                text += token;
+                emit({ type: "delta", text: token });
               }
             }
-            text = full;
-          } else {
-            controller.enqueue(encoder.encode(text));
           }
+
+          await saveMessage({
+            threadId,
+            role: "assistant",
+            content: text,
+            metadata,
+          });
+          await touchThread(threadId);
 
           logEvent("chat.completed", {
             model: modelUsed || "agent",
@@ -162,37 +156,28 @@ export async function POST(req: NextRequest) {
             ansChars: text.length,
             tookMs: Date.now() - startTime,
           });
-
-          await saveMessage({
-            threadId,
-            role: 'assistant',
-            content: text,
-            metadata: {
-              sources,
-              steps,
-              ...(modelUsed ? { model: modelUsed } : {}),
-              agentic,
-            },
-          });
-
-          await touchThread(threadId);
+          emit({ type: "done", metadata });
         } catch (err) {
-          logEvent("chat.stream_error", {
-            message: err instanceof Error ? err.message : "unknown",
-          });
-          controller.error(err);
+          const message =
+            err instanceof Error && err.message
+              ? err.message
+              : "پاسخ کامل نشد. دوباره تلاش کن.";
+          logEvent("chat.stream_error", { message });
+          emit({ type: "error", message, retryable: true });
         } finally {
           controller.close();
         }
+      },
+      cancel() {
+        logEvent("chat.cancelled", { tookMs: Date.now() - startTime });
       },
     });
 
     return new Response(readable, {
       headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'X-Accel-Buffering': 'no',
-        'Cache-Control': 'no-cache',
-        'X-Model-Used': modelUsed || 'agent',
+        "Content-Type": "application/x-ndjson; charset=utf-8",
+        "X-Accel-Buffering": "no",
+        "Cache-Control": "no-cache, no-transform",
       },
     });
   } catch (err) {
@@ -200,7 +185,6 @@ export async function POST(req: NextRequest) {
       message: err instanceof Error ? err.message : "unknown",
       tookMs: Date.now() - startTime,
     });
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return new Response(message, { status: 500 });
+    return new Response("خطای غیرمنتظره‌ای رخ داد.", { status: 500 });
   }
 }

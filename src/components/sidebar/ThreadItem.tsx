@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Thread } from "@/db/schema";
 
 interface Props {
@@ -11,186 +11,33 @@ interface Props {
   onRename: (threadId: string, newTitle: string) => void;
 }
 
-export function ThreadItem({
-  thread,
-  isActive,
-  onSelect,
-  onDelete,
-  onRename,
-}: Props) {
-  // Controls whether we're in rename mode
+export function ThreadItem({ thread, isActive, onSelect, onDelete, onRename }: Props) {
   const [isEditing, setIsEditing] = useState(false);
-  console.log("is Active", isActive);
-  // Controls whether we're showing the delete confirmation
-  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-
-  // The value in the rename input
-  const [editValue, setEditValue] = useState(thread.title);
-
-  // Hover state to show action buttons
-  const [isHovered, setIsHovered] = useState(false);
-
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [value, setValue] = useState(thread.title);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Focus the input when rename mode starts
   useEffect(() => {
-    if (isEditing) {
-      inputRef.current?.focus();
-      inputRef.current?.select();
-    }
+    if (isEditing) { inputRef.current?.focus(); inputRef.current?.select(); }
   }, [isEditing]);
 
-  const handleRenameSubmit = () => {
-    const trimmed = editValue.trim();
-    if (!trimmed || trimmed === thread.title) {
-      // Nothing changed — just exit edit mode
-      setEditValue(thread.title);
-      setIsEditing(false);
-      return;
-    }
-    onRename(thread.id, trimmed);
+  const submitRename = () => {
+    const title = value.trim();
+    if (title && title !== thread.title) onRename(thread.id, title);
+    else setValue(thread.title);
     setIsEditing(false);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleRenameSubmit();
-    if (e.key === "Escape") {
-      setEditValue(thread.title);
-      setIsEditing(false);
-    }
-  };
-
   return (
-    <div
-      className={`group relative flex items-center rounded-lg mb-1 transition-colors ${
-        isActive ? "bg-neutral-100" : "hover:bg-neutral-50"
-      }`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => {
-        setIsHovered(false);
-        setIsConfirmingDelete(false);
-      }}
-    >
+    <div className={`group mb-1 flex min-h-11 items-center rounded-xl px-1 transition ${isActive ? "bg-accent/10 text-accent-strong" : "text-muted hover:bg-surface-soft hover:text-foreground"}`}>
       {isEditing ? (
-        // Rename mode — show input
-        <input
-          ref={inputRef}
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onBlur={handleRenameSubmit}
-          className="flex-1 px-3 py-2 text-sm bg-white rounded-lg outline-none text-neutral-800"
-        />
+        <input ref={inputRef} value={value} onChange={(event) => setValue(event.target.value)} onBlur={submitRename} onKeyDown={(event) => { if (event.key === "Enter") submitRename(); if (event.key === "Escape") { setValue(thread.title); setIsEditing(false); } }} className="min-w-0 flex-1 rounded-lg border border-accent/40 bg-surface px-2 py-1.5 text-sm text-foreground outline-none" aria-label="نام گفتگو" />
       ) : (
-        // Normal mode — show title button
-        <button
-          onClick={onSelect}
-          className="flex-1 text-left px-3 py-2.5 md:py-2 text-sm min-w-0 overflow-hidden"
-        >
-          {/* Fade out instead of "..." */}
-          <div className="relative overflow-hidden">
-            {/* Title text — fix dark mode active color */}
-            <span
-              className={`block whitespace-nowrap text-sm ${
-                isActive
-                  ? "text-neutral-900  font-medium"
-                  : "text-neutral-600 dark:text-neutral-400"
-              }`}
-            >
-              {thread.title}
-            </span>
-
-            {/* Gradient fade */}
-            <div
-              className={`absolute inset-y-0 right-0 transition-all duration-150 ${
-                isHovered ? "w-16" : "w-8"
-              }`}
-              style={{
-                background: isActive
-                  ? "linear-gradient(to left, var(--sidebar-active-bg) 40%, transparent)"
-                  : "linear-gradient(to left, var(--sidebar-bg) 40%, transparent)",
-              }}
-            />
-          </div>
-        </button>
+        <button type="button" onClick={onSelect} className="min-w-0 flex-1 truncate px-2 py-2 text-right text-sm font-medium">{thread.title}</button>
       )}
-
-      {/* Action buttons — only show on hover and not while editing */}
-      {isHovered && !isEditing && (
-        <div className="flex items-center gap-1 pr-2 flex-shrink-0">
-          {isConfirmingDelete ? (
-            // Delete confirmation
-            <>
-              <button
-                onClick={() => onDelete(thread.id)}
-                className="text-xs text-red-500 hover:text-red-700 font-medium px-1"
-                title="Confirm delete"
-              >
-                Delete
-              </button>
-              <button
-                onClick={() => setIsConfirmingDelete(false)}
-                className="text-xs text-neutral-400 hover:text-neutral-600 px-1"
-                title="Cancel"
-              >
-                Cancel
-              </button>
-            </>
-          ) : (
-            <>
-              {/* Rename button */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsEditing(true);
-                }}
-                className="text-neutral-400 hover:text-neutral-700 transition-colors p-1 rounded"
-                title="Rename"
-              >
-                {/* Pencil icon */}
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
-              </button>
-
-              {/* Delete button */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsConfirmingDelete(true);
-                }}
-                className="text-neutral-400 hover:text-red-500 transition-colors p-1 rounded"
-                title="Delete"
-              >
-                {/* Trash icon */}
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                  <path d="M10 11v6M14 11v6" />
-                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                </svg>
-              </button>
-            </>
-          )}
+      {!isEditing && (
+        <div className="hidden shrink-0 items-center gap-0.5 group-hover:flex group-focus-within:flex">
+          {confirmDelete ? <><button type="button" onClick={() => onDelete(thread.id)} className="rounded-md px-1.5 py-1 text-[11px] text-red-500 hover:bg-red-500/10">حذف</button><button type="button" onClick={() => setConfirmDelete(false)} className="rounded-md px-1.5 py-1 text-[11px] hover:bg-surface">لغو</button></> : <><button type="button" onClick={() => setIsEditing(true)} className="flex h-8 w-8 items-center justify-center rounded-lg text-xs hover:bg-surface" aria-label="تغییر نام">✎</button><button type="button" onClick={() => setConfirmDelete(true)} className="flex h-8 w-8 items-center justify-center rounded-lg text-xs hover:bg-red-500/10 hover:text-red-500" aria-label="حذف گفتگو">×</button></>}
         </div>
       )}
     </div>

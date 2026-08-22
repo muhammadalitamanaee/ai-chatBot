@@ -21,29 +21,29 @@ export function UserPanel() {
   }, []);
 
   return (
-    <div className="p-3 border-t border-neutral-200 dark:border-neutral-700 flex items-center gap-3">
+    <div className="flex items-center gap-3 border-t border-border p-3">
       {user?.image ? (
         <Image
           src={user.image}
-          alt={user.name ?? "User"}
+          alt={user.name ?? "کاربر"}
           width={32}
           height={32}
-          className="rounded-full flex-shrink-0"
+          className="shrink-0 rounded-xl"
         />
       ) : (
-        <div className="w-8 h-8 rounded-full bg-neutral-300 dark:bg-neutral-600 flex items-center justify-center text-xs font-medium flex-shrink-0">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-surface-soft text-xs font-medium text-foreground">
           {user?.name?.[0]?.toUpperCase() ?? "?"}
         </div>
       )}
 
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-neutral-800 dark:text-neutral-200 truncate">
-          {user?.name ?? "User"}
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-medium text-foreground">
+          {user?.name ?? "کاربر"}
         </p>
-        <p className="text-xs text-neutral-400 truncate">{user?.email ?? ""}</p>
+        <p dir="ltr" className="truncate text-left text-[10px] text-muted">{user?.email ?? ""}</p>
       </div>
 
-      <div className="flex items-center gap-1 flex-shrink-0">
+      <div className="flex shrink-0 items-center gap-1">
         <DarkModeToggle />
         <SignOutButton />
       </div>

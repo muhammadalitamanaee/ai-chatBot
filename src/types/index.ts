@@ -12,8 +12,16 @@ export interface Message {
   role: Role;
   content: string;
   isStreaming?: boolean;
+  status?: string;
   metadata?: MessageMeta;
 }
+
+export type ChatStreamEvent =
+  | { type: "status"; message: string }
+  | { type: "step"; step: string }
+  | { type: "delta"; text: string }
+  | { type: "done"; metadata: MessageMeta }
+  | { type: "error"; message: string; retryable?: boolean };
 
 export interface ChatRequest {
   messages: Pick<Message, "role" | "content">[];

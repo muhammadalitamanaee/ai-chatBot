@@ -79,8 +79,8 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
         ref={drawerRef}
         className={`
           fixed top-0 right-0 h-full w-full sm:w-96 z-50
-          bg-white dark:bg-neutral-800
-          border-l border-neutral-200 dark:border-neutral-700
+          bg-surface text-foreground
+          border-l border-border
           shadow-xl
           transform transition-transform duration-300 ease-in-out
           ${isOpen ? "translate-x-0" : "translate-x-full"}
@@ -89,8 +89,8 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-neutral-200 dark:border-neutral-700">
-          <h2 className="font-semibold text-neutral-800 dark:text-neutral-100">
-            Settings
+          <h2 className="font-semibold text-foreground">
+            تنظیمات پاسخ
           </h2>
           <button
             onClick={onClose}
@@ -115,13 +115,13 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
-          {/* Model selector */}
+          {/* مدل پاسخ‌گو selector */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-200 mb-1">
-              Model
+              مدل پاسخ‌گو
             </label>
             <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-3">
-              Choose which AI model responds to your messages
+مدل مورد استفاده برای پاسخ‌ها را انتخاب کن
             </p>
 
             <div className="space-y-2">
@@ -151,7 +151,7 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
                         </span>
                         {selectedModel === model.id && (
                           <span className="text-xs text-neutral-500 dark:text-neutral-400">
-                            ✓ Active
+                            فعال ✓
                           </span>
                         )}
                       </div>
@@ -168,10 +168,10 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
           {/* Answer depth */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-200 mb-1">
-              Answer depth
+سطح پاسخ
             </label>
             <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-3">
-              How detailed should the assistant answers be?
+میزان جزئیات و زبان فنی پاسخ را مشخص کن
             </p>
 
             <div className="grid grid-cols-2 gap-2">
@@ -218,33 +218,32 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
           {/* System prompt */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-200 mb-1">
-              System prompt
+دستور شخصی
             </label>
             <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-3">
-              Give the AI a personality or set of instructions. Leave empty for
-              default behavior.
+اگر نیاز داری، سبک یا محدودیت خاصی برای پاسخ‌ها بنویس.
             </p>
 
             {/* Preset prompts */}
             <div className="flex flex-wrap gap-2 mb-3">
               {[
                 {
-                  label: "Concise",
+                  label: "کوتاه",
                   prompt:
                     "Be concise. Answer in as few words as possible without losing meaning.",
                 },
                 {
-                  label: "Coding assistant",
+                  label: "برنامه‌نویسی",
                   prompt:
                     "You are an expert programming assistant. Focus on clean, well-commented code. Always explain your reasoning.",
                 },
                 {
-                  label: "Persian",
+                  label: "فارسی",
                   prompt:
                     "Always respond in Persian (Farsi), no matter what language the user writes in.",
                 },
                 {
-                  label: "Formal",
+                  label: "رسمی",
                   prompt:
                     "Respond in a formal, professional tone at all times.",
                 },
@@ -262,7 +261,7 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
                   onClick={() => setSystemPrompt("")}
                   className="text-xs px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                 >
-                  Clear
+                  پاک‌کردن
                 </button>
               )}
             </div>
@@ -270,7 +269,7 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
             <textarea
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
-              placeholder="e.g. You are a helpful assistant that always responds in Persian..."
+              placeholder="مثلاً پاسخ‌ها کوتاه و همراه با نمونه دستور باشند…"
               rows={5}
               className="
                 w-full resize-none rounded-xl px-4 py-3 text-sm
@@ -299,7 +298,7 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
               disabled:opacity-50 disabled:cursor-not-allowed
             "
           >
-            {isSaving ? "Saving..." : saved ? "✓ Saved" : "Save settings"}
+            {isSaving ? "در حال ذخیره…" : saved ? "ذخیره شد ✓" : "ذخیره تنظیمات"}
           </button>
         </div>
       </div>
