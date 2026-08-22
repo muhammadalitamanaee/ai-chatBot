@@ -30,3 +30,10 @@ ALTER TABLE chat_settings ADD COLUMN IF NOT EXISTS answer_depth text DEFAULT 'be
 
 -- Evidence/metadata on chat_messages (for source cards + agent steps)
 ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS metadata jsonb;
+
+-- Per-user rate limiting (fixed minute window)
+CREATE TABLE IF NOT EXISTS rate_limits (
+  window_key text PRIMARY KEY,
+  count integer NOT NULL DEFAULT 0,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);

@@ -102,6 +102,7 @@ export async function saveUserSettings(data: NewSettings) {
       set: {
         systemPrompt: data.systemPrompt,
         model: data.model,
+        answerDepth: data.answerDepth ?? "beginner",
         updatedAt: new Date(),
       },
     });

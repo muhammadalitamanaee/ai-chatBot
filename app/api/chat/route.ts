@@ -17,6 +17,7 @@ import {
   type AnswerDepth,
 } from '@/lib/agent';
 import { tryStream, withFallback } from '@/lib/llm';
+import { checkRateLimit } from '@/lib/rateLimit';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 export async function POST(req: NextRequest) {
@@ -26,6 +27,18 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Neon-backed per-user rate limit — before any embedding/LLM cost.
+    const rl = await checkRateLimit(session.user.id);
+    if (!rl.allowed) {
+      return new Response(
+        `بیش از حد مجاز درخواست دادی. بعد از ${rl.retryAfterSec} ثانیه دوباره تلاش کن.`,
+        {
+          status: 429,
+          headers: { 'Retry-After': String(rl.retryAfterSec) },
+        },
+      );
+    }
+
     const body: ChatRequest = await req.json();
 
     if (!body.messages || body.messages.length === 0) {

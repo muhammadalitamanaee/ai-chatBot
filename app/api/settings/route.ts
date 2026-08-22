@@ -16,6 +16,7 @@ export async function GET() {
       userSettings ?? {
         systemPrompt: "",
         model: "openai/gpt-oss-20b:free",
+        answerDepth: "beginner",
       },
     );
   } catch (err) {
@@ -32,17 +33,21 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { systemPrompt, model } = await req.json();
+    const { systemPrompt, model, answerDepth } = await req.json();
 
     // Validate model — reject unknown model IDs
     if (model && !ALL_MODEL_IDS.includes(model)) {
       return new Response("Invalid model", { status: 400 });
     }
 
+    const depth =
+      answerDepth === "professional" ? "professional" : "beginner";
+
     await saveUserSettings({
       userId: session.user.id,
       systemPrompt: systemPrompt ?? null,
       model: model ?? "openai/gpt-oss-20b:free",
+      answerDepth: depth,
     });
 
     return Response.json({ success: true });

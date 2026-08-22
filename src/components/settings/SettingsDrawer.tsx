@@ -11,6 +11,9 @@ interface Props {
 export function SettingsDrawer({ isOpen, onClose }: Props) {
   const [systemPrompt, setSystemPrompt] = useState("");
   const [selectedModel, setSelectedModel] = useState("openai/gpt-oss-20b:free");
+  const [answerDepth, setAnswerDepth] = useState<"beginner" | "professional">(
+    "beginner",
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -24,6 +27,9 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
       .then((data) => {
         setSystemPrompt(data.systemPrompt ?? "");
         setSelectedModel(data.model ?? "openai/gpt-oss-20b:free");
+        setAnswerDepth(
+          data.answerDepth === "professional" ? "professional" : "beginner",
+        );
       })
       .catch(console.error);
   }, [isOpen]);
@@ -43,7 +49,11 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
       await fetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ systemPrompt, model: selectedModel }),
+        body: JSON.stringify({
+          systemPrompt,
+          model: selectedModel,
+          answerDepth,
+        }),
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -152,6 +162,56 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
                   ))}
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Answer depth */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-200 mb-1">
+              Answer depth
+            </label>
+            <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-3">
+              How detailed should the assistant answers be?
+            </p>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setAnswerDepth("beginner")}
+                className={`
+                  px-4 py-3 rounded-xl border text-left transition-all
+                  ${
+                    answerDepth === "beginner"
+                      ? "border-neutral-800 dark:border-neutral-300 bg-neutral-50 dark:bg-neutral-700"
+                      : "border-neutral-200 dark:border-neutral-600 hover:border-neutral-300 dark:hover:border-neutral-500"
+                  }
+                `}
+              >
+                <span className="block text-sm font-medium text-neutral-800 dark:text-neutral-100">
+                  مبتدی
+                </span>
+                <span className="block text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
+                  گام‌به‌گام و ساده
+                </span>
+              </button>
+
+              <button
+                onClick={() => setAnswerDepth("professional")}
+                className={`
+                  px-4 py-3 rounded-xl border text-left transition-all
+                  ${
+                    answerDepth === "professional"
+                      ? "border-neutral-800 dark:border-neutral-300 bg-neutral-50 dark:bg-neutral-700"
+                      : "border-neutral-200 dark:border-neutral-600 hover:border-neutral-300 dark:hover:border-neutral-500"
+                  }
+                `}
+              >
+                <span className="block text-sm font-medium text-neutral-800 dark:text-neutral-100">
+                  حرفه‌ای
+                </span>
+                <span className="block text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
+                  فنی و دقیق
+                </span>
+              </button>
             </div>
           </div>
 

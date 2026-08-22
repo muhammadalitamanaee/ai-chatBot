@@ -27,7 +27,7 @@ export function avalClient() {
   });
 }
 
-const REQUEST_TIMEOUT_MS = 25_000;
+const REQUEST_TIMEOUT_MS = 60_000;
 
 export interface CompletionOptions {
   messages: ChatCompletionMessageParam[];
@@ -50,7 +50,7 @@ export async function chatCompletion(
       model: modelId,
       messages: options.messages,
       ...(options.tools?.length ? { tools: options.tools } : {}),
-      max_tokens: options.maxTokens ?? 900,
+      max_tokens: options.maxTokens ?? 1600,
       ...(options.json
         ? { response_format: { type: "json_object" as const } }
         : {}),

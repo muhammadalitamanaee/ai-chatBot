@@ -94,6 +94,17 @@ export const docChunks = pgTable("doc_chunks", {
   indexedAt: timestamp("indexed_at").defaultNow().notNull(),
 });
 
+// ---------------------------------------------------------
+// RATE LIMITS TABLE (per-user fixed window)
+// window_key = "<userId>:<minuteBucket>" — a fresh key every minute
+// resets the counter automatically. Enforced before paid LLM calls.
+// ---------------------------------------------------------
+export const rateLimits = pgTable("rate_limits", {
+  windowKey: text("window_key").primaryKey(),
+  count: integer("count").notNull().default(0),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export type Settings = typeof settings.$inferSelect;
 export type NewSettings = typeof settings.$inferInsert;
 export type MessageRow = typeof messages.$inferSelect;
