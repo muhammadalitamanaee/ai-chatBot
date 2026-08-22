@@ -72,6 +72,13 @@ export async function POST(req: NextRequest) {
         let metadata: MessageMeta = {};
 
         const emit = (value: ChatStreamEvent) => controller.enqueue(event(value));
+        const emitWordByWord = async (content: string) => {
+          const words = content.match(/\S+\s*/gu) ?? [content];
+          for (const word of words) {
+            emit({ type: "delta", text: word });
+            await new Promise((resolve) => setTimeout(resolve, 18));
+          }
+        };
 
         try {
           emit({ type: "status", message: "در حال بررسی درخواست…" });
@@ -105,13 +112,13 @@ export async function POST(req: NextRequest) {
 
           if (outcome.kind === "ask") {
             text = outcome.question ?? "برای ادامه لطفاً کمی بیشتر توضیح بده.";
-            emit({ type: "delta", text });
+            await emitWordByWord(text);
           } else if (outcome.kind === "answer" && outcome.answer) {
             text = outcome.answer;
-            emit({ type: "delta", text });
+            await emitWordByWord(text);
           } else if (outcome.evidence.length === 0) {
             text = "برای این پرسش منبع معتبری در مستندات لیارا پیدا نکردم و نمی‌خواهم حدس بزنم. لطفاً نام سرویس یا متن دقیق خطا را بفرست.";
-            emit({ type: "delta", text });
+            await emitWordByWord(text);
           } else {
             emit({ type: "status", message: "در حال آماده‌کردن پاسخ مستند…" });
             const grounded = buildGroundedPrompt(
